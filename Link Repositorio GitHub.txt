@@ -1,8 +1,0 @@
-Link para repositorio GitHub Proyecto Registro CCTV
-
-
-https://github.com/SkyNet7k/registro-cctv.git
-
-
-Cadena de Coneccion de MongoDB
-mongodb+srv://skyfall7k_db_user:<C4m4r0n2022.*-+>@cluster0.rvpqibz.mongodb.net/?appName=Cluster0

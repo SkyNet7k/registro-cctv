@@ -38,10 +38,6 @@
           <i class="fa-brands fa-whatsapp text-emerald-400"></i>
           Resumen WhatsApp
         </button>
-        <button id="btnExportCsv" class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">
-          <i class="fa-solid fa-file-excel"></i>
-          Exportar Excel
-        </button>
       </div>
     </div>
   </header>
@@ -58,9 +54,6 @@
             <i class="fa-solid fa-pen-to-square text-indigo-400"></i>
             <span id="formTitle">Registro de Novedad</span>
           </h2>
-          <button id="btnCancelEdit" class="hidden text-xs text-slate-400 hover:text-slate-200">
-            <i class="fa-solid fa-xmark mr-1"></i> Cancelar
-          </button>
         </div>
 
         <form id="caseForm" class="space-y-4">
@@ -131,9 +124,6 @@
           </div>
           <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
             <span id="tableCountInfo" class="text-xs text-slate-400">Mostrando 0 registros</span>
-            <button id="btnClearAll" class="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1">
-              <i class="fa-solid fa-trash-can"></i> Limpiar Turno
-            </button>
           </div>
         </div>
 
@@ -145,7 +135,6 @@
                 <th class="px-4 py-3">Novedad</th>
                 <th class="px-4 py-3">Solución</th>
                 <th class="px-4 py-3">Operador</th>
-                <th class="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody id="casesTableBody"></tbody>
@@ -160,25 +149,6 @@
     </div>
 
   </main>
-
-  <!-- Modal Reporte WhatsApp -->
-  <div id="reportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full p-5 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-3">
-        <h3 class="font-semibold text-white flex items-center gap-2">
-          <i class="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
-          Resumen para WhatsApp
-        </h3>
-        <button id="btnCloseReportModal" class="text-slate-400 hover:text-white">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <textarea id="reportTextarea" rows="10" readonly class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-200 font-mono focus:outline-none resize-none"></textarea>
-      <button id="btnCopyReport" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium py-2.5 rounded-lg transition flex items-center justify-center gap-2">
-        <i class="fa-solid fa-copy"></i> Copiar al Portapapeles
-      </button>
-    </div>
-  </div>
 
   <!-- Script JavaScript -->
   <script src="script.js"></script>
