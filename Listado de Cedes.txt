@@ -1,0 +1,11 @@
+Lista de Sucursales Alkosto                Lista de Sucursales Familia Center               Sucursales Vecinos
+Alkosto-1                                  FC-1                                             Vecinos-1
+Alkosto-2                                  FC-2                                             Vecinos-2
+Alkosto-3                                  FC-3
+Alkosto-4                                  FC-4
+Alkosto-5                                  FC-5
+Alkosto-6                                  FC-6
+Alkosto-7                                  FC-7
+Alkosto-8                                  FC-8
+Alkosto-9
+Alkosto-10
