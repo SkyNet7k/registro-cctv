@@ -84,6 +84,37 @@ app.delete('/api/casos', (req, res) => {
   res.json({ status: 'ok', message: 'Todos los casos fueron eliminados' });
 });
 
+// 5. Endpoint para envío automático de WhatsApp en segundo plano
+app.post('/api/enviar-whatsapp', async (req, res) => {
+    const { mensaje, numero } = req.body;
+    const destino = numero || "584126615457"; // Número por defecto (+58 412-6615457)
+
+    try {
+        const INSTANCE_ID = process.env.WA_INSTANCE_ID; 
+        const API_TOKEN = process.env.WA_API_TOKEN;
+
+        if (!INSTANCE_ID || !API_TOKEN) {
+            console.log("Mensaje procesado en backend:", mensaje);
+            return res.json({ success: true, message: "Petición recibida correctamente en el servidor." });
+        }
+
+        const response = await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId: `${destino}@c.us`,
+                message: mensaje
+            })
+        });
+
+        const data = await response.json();
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error("Error al enviar WhatsApp automático:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Ruta principal abre el index.html (Compatible con Express 5)
 app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
