@@ -5,13 +5,13 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de la conexión a PostgreSQL (Render provee DATABASE_URL automáticamente)
+// Configuración de la conexión a PostgreSQL (Render provee DATABASE_URL automáticamente)[cite: 5]
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Inicializar la tabla en la base de datos si no existe
+// Inicializar la tabla en la base de datos si no existe[cite: 5]
 async function initDB() {
   try {
     await pool.query(`
@@ -35,12 +35,12 @@ initDB();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos estáticos desde el directorio raíz
+// Servir archivos estáticos desde el directorio raíz[cite: 5]
 app.use(express.static(__dirname));
 
 // --- RUTAS DE API (REST API con PostgreSQL) ---
 
-// 1. Obtener todos los casos
+// 1. Obtener todos los casos[cite: 5]
 app.get('/api/casos', async (req, res) => {
   try {
     const result = await pool.query('SELECT data FROM casos ORDER BY created_at DESC');
@@ -52,7 +52,7 @@ app.get('/api/casos', async (req, res) => {
   }
 });
 
-// 2. Registrar o actualizar un caso
+// 2. Registrar o actualizar un caso[cite: 5]
 app.post('/api/casos', async (req, res) => {
   const newCase = req.body;
   
@@ -86,7 +86,37 @@ app.post('/api/casos', async (req, res) => {
   }
 });
 
-// 3. Eliminar un caso por ID
+// --- NUEVA RUTA: Actualizar un caso existente por ID (Método PUT) ---
+app.put('/api/casos/:id', async (req, res) => {
+  const { id } = req.params;
+  const updatedCase = req.body;
+
+  if (!updatedCase || !updatedCase.store || !updatedCase.novelty) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+
+  try {
+    const query = `
+      UPDATE casos 
+      SET store = $1, novelty = $2, data = $3 
+      WHERE id = $4;
+    `;
+
+    await pool.query(query, [
+      updatedCase.store,
+      updatedCase.novelty,
+      JSON.stringify(updatedCase),
+      id
+    ]);
+
+    res.json({ status: 'ok', message: 'Caso actualizado con éxito', data: updatedCase });
+  } catch (err) {
+    console.error('Error al actualizar caso:', err);
+    res.status(500).json({ error: 'Error al actualizar en la base de datos' });
+  }
+});
+
+// 3. Eliminar un caso por ID[cite: 5]
 app.delete('/api/casos/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -98,7 +128,7 @@ app.delete('/api/casos/:id', async (req, res) => {
   }
 });
 
-// 4. Limpiar todos los casos del turno
+// 4. Limpiar todos los casos del turno[cite: 5]
 app.delete('/api/casos', async (req, res) => {
   try {
     await pool.query('DELETE FROM casos');
@@ -109,7 +139,7 @@ app.delete('/api/casos', async (req, res) => {
   }
 });
 
-// 5. Endpoint para envío automático de WhatsApp en segundo plano
+// 5. Endpoint para envío automático de WhatsApp en segundo plano[cite: 5]
 app.post('/api/enviar-whatsapp', async (req, res) => {
     const { mensaje, numero } = req.body;
     const destino = numero || "584126615457";
@@ -140,12 +170,12 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
     }
 });
 
-// Ruta principal abre el index.html
+// Ruta principal abre el index.html[cite: 5]
 app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Iniciar servidor
+// Iniciar servidor[cite: 5]
 app.listen(PORT, () => {
   console.log(`===================================================`);
   console.log(`🚀 Servidor CCTV iniciado con PostgreSQL`);
