@@ -1,4 +1,3 @@
-// --- SUCURSALES ORGANIZADAS POR GRUPO ---
 const STORE_GROUPS = {
   "Alkosto": [
     "Alkosto-1", "Alkosto-2", "Alkosto-3", "Alkosto-4", "Alkosto-5",
@@ -21,7 +20,9 @@ const storeSelect = document.getElementById('storeSelect');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
 const noveltyTypeSelect = document.getElementById('noveltyType');
-const solutionTextInput = document.getElementById('solutionText');
+const noveltyDetailsInput = document.getElementById('noveltyDetails');
+const actionTextInput = document.getElementById('actionText');
+const actorsTextInput = document.getElementById('actorsText');
 
 const casesTableBody = document.getElementById('casesTableBody');
 const emptyState = document.getElementById('emptyState');
@@ -47,10 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Poblar el menú desplegable con subgrupos (<optgroup>)
 function populateStoreDropdown() {
   if (!storeSelect) return;
-  storeSelect.innerHTML = '<option value="" disabled selected>Seleccione una sucursal...</option>';
+  storeSelect.innerHTML = '<option value="" disabled selected>Seleccione sede...</option>';
   
   for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
     const optGroup = document.createElement('optgroup');
@@ -103,7 +103,9 @@ function renderCases() {
   const filtered = cases.filter(c => 
     (c.store && c.store.toLowerCase().includes(query)) ||
     (c.novelty && c.novelty.toLowerCase().includes(query)) ||
-    (c.solution && c.solution.toLowerCase().includes(query)) ||
+    (c.details && c.details.toLowerCase().includes(query)) ||
+    (c.actions && c.actions.toLowerCase().includes(query)) ||
+    (c.actors && c.actors.toLowerCase().includes(query)) ||
     (c.operator && c.operator.toLowerCase().includes(query))
   );
 
@@ -119,22 +121,21 @@ function renderCases() {
       tr.className = "hover:bg-slate-750/50 transition border-b border-slate-700/40";
       
       tr.innerHTML = `
-        <td class="px-4 py-3">
+        <td class="px-4 py-3 align-top">
           <div class="font-medium text-slate-100">${c.store}</div>
           <div class="text-[10px] text-slate-400 mt-0.5">
             <i class="fa-regular fa-clock mr-1"></i>${c.startTime} - ${c.endTime}
           </div>
         </td>
-        <td class="px-4 py-3">
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+        <td class="px-4 py-3 max-w-xs align-top">
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-1">
             ${c.novelty}
           </span>
+          <p class="text-slate-300 text-xs mb-1"><strong>Novedad:</strong> ${c.details}</p>
+          <p class="text-slate-400 text-[11px]"><strong>Acciones:</strong> ${c.actions}</p>
         </td>
-        <td class="px-4 py-3 max-w-xs">
-          <p class="truncate text-slate-300 text-xs" title="${c.solution}">${c.solution}</p>
-        </td>
-        <td class="px-4 py-3 text-slate-400 whitespace-nowrap">
-          ${c.operator}
+        <td class="px-4 py-3 text-slate-300 text-xs align-top">
+          ${c.actors}
         </td>
       `;
       casesTableBody.appendChild(tr);
@@ -156,7 +157,11 @@ if (caseForm) {
       startTime: startTimeInput.value,
       endTime: endTimeInput.value,
       novelty: noveltyTypeSelect.value,
-      solution: solutionTextInput.value.trim()
+      details: noveltyDetailsInput.value.trim(),
+      actions: actionTextInput.value.trim(),
+      actors: actorsTextInput.value.trim(),
+      // Mantenemos compatibilidad con el panel admin mapeando solution y novelty generales
+      solution: `Acciones: ${actionTextInput.value.trim()} | Actuantes: ${actorsTextInput.value.trim()}`
     };
 
     try {
@@ -178,9 +183,6 @@ if (caseForm) {
 
 function resetForm() {
   if (caseForm) caseForm.reset();
-  if (formTitle) formTitle.textContent = "Registro de Novedad";
-  if (btnSubmitForm) btnSubmitForm.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Caso`;
-  
   const savedOperator = localStorage.getItem('cctv_operator');
   if (savedOperator && operatorNameInput) operatorNameInput.value = savedOperator;
   setInitialTimes();
@@ -188,22 +190,23 @@ function resetForm() {
 
 if (searchInput) searchInput.addEventListener('input', renderCases);
 
-// Reporte WhatsApp (Abre chat directo al número +58 412-6615457)
+// Reporte WhatsApp bajo el formato exacto solicitado
 if (btnQuickReport) {
   btnQuickReport.addEventListener('click', () => {
     if (cases.length === 0) return alert('No hay casos registrados en el turno.');
 
-    let text = `🚨 *REPORTE NOVEDADES CCTV*\n-----------------------------------\n\n`;
+    let text = `🚨 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
 
     cases.forEach((c, idx) => {
-      text += `*${idx + 1}. ${c.store}*\n`;
-      text += `⏱️ *Hora:* ${c.startTime} a ${c.endTime}\n`;
+      text += `*${idx + 1}. Sede: ${c.store}*\n`;
+      text += `⏱️ *Horario:* ${c.startTime} a ${c.endTime}\n`;
       text += `📌 *Tipo:* ${c.novelty}\n`;
-      text += `📝 *Solución:* ${c.solution}\n`;
-      text += `👤 *Operador:* ${c.operator}\n\n`;
+      text += `📝 *Novedad:* ${c.details}\n`;
+      text += `⚙️ *Acciones:* ${c.actions}\n`;
+      text += `👤 *Actuante / Involucrados:* ${c.actors}\n\n`;
     });
 
-    text += `-----------------------------------\n📊 *Total Novedades:* ${cases.length}`;
+    text += `===================================\n📊 *Total Novedades en Turno:* ${cases.length}`;
 
     const phoneNumber = "584126615457";
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;

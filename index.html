@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro CCTV</title>
+  <title>Registro CCTV - Operador</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -29,11 +29,15 @@
               En línea
             </span>
           </h1>
-          <p class="text-xs text-slate-400">Control y seguimiento operativo de novedades</p>
+          <p class="text-xs text-slate-400">Dpto. de Seguridad Electrónica</p>
         </div>
       </div>
       
       <div class="flex items-center space-x-3">
+        <a href="admin.html" class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg transition">
+          <i class="fa-solid fa-chart-pie"></i>
+          Panel Admin / Dashboard
+        </a>
         <button id="btnQuickReport" class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg border border-slate-600 transition">
           <i class="fa-brands fa-whatsapp text-emerald-400"></i>
           Resumen WhatsApp
@@ -47,28 +51,29 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-      <!-- Formulario -->
-      <div class="lg:col-span-4 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+      <!-- Formulario Adaptado al Nuevo Formato -->
+      <div class="lg:col-span-5 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
         <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
           <h2 class="text-base font-semibold text-white flex items-center gap-2">
             <i class="fa-solid fa-pen-to-square text-indigo-400"></i>
-            <span id="formTitle">Registro de Novedad</span>
+            <span id="formTitle">Cargar Reporte de Novedad</span>
           </h2>
+          <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">Seguridad Electrónica</span>
         </div>
 
-        <form id="caseForm" class="space-y-4">
-          <!-- Operador -->
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Operador CCTV</label>
-            <input type="text" id="operatorName" required placeholder="Nombre o código del operador" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-
-          <!-- Tienda / Sucursal -->
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Tienda / Sucursal</label>
-            <select id="storeSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="" disabled selected>Cargando sucursales...</option>
-            </select>
+        <form id="caseForm" class="space-y-3">
+          <!-- Operador y Sede -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Operador / Actuante</label>
+              <input type="text" id="operatorName" required placeholder="Tu nombre o código" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Sede / Sucursal</label>
+              <select id="storeSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="" disabled selected>Seleccione sede...</option>
+              </select>
+            </div>
           </div>
 
           <!-- Horas -->
@@ -86,39 +91,52 @@
             </div>
           </div>
 
-          <!-- Tipo de Novedad -->
+          <!-- Tipo de Novedad / Categoría -->
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Tipo de Novedad</label>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Tipo de Incidencia / Categoría</label>
             <select id="noveltyType" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="" disabled selected>Seleccione tipo...</option>
+              <option value="Accidente Laboral">Accidente Laboral</option>
               <option value="Hurto / Tentativa">Hurto / Tentativa</option>
               <option value="Actitud Sospechosa">Actitud Sospechosa</option>
               <option value="Falla Técnica CCTV / Cámaras">Falla Técnica CCTV / Cámaras</option>
               <option value="Incidencia de Personal">Incidencia de Personal</option>
               <option value="Apertura / Cierre de Tienda">Apertura / Cierre de Tienda</option>
               <option value="Falla Eléctrica / Red">Falla Eléctrica / Red</option>
-              <option value="Otro">Otro / General</option>
+              <option value="Otro / General">Otro / General</option>
             </select>
           </div>
 
-          <!-- Solución -->
+          <!-- Descripción de la Novedad -->
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Solución / Observaciones</label>
-            <textarea id="solutionText" rows="3" required placeholder="Escriba las acciones tomadas o resolución del caso..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Novedad (Detalle del incidente)</label>
+            <textarea id="noveltyDetails" rows="3" required placeholder="Ej. El Supervisor Reinoso informa sobre incidente en charcutería..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
           </div>
 
-          <!-- Botón -->
-          <button type="submit" id="btnSubmitForm" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 text-sm">
+          <!-- Acciones Tomadas -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Acciones Tomadas</label>
+            <textarea id="actionText" rows="2" required placeholder="Ej. Se envía video al Jefe de Zona Torrealba..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+          </div>
+
+          <!-- Actuantes / Involucrados -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Actuantes / Involucrados (Supervisores, Jefes)</label>
+            <input type="text" id="actorsText" required placeholder="Ej. Sup. Reinoso, Jefe de zona: Torrealba" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+
+          <!-- Botón Guardar -->
+          <button type="submit" id="btnSubmitForm" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 text-sm mt-2">
             <i class="fa-solid fa-floppy-disk"></i>
-            Guardar Caso
+            Guardar Reporte
           </button>
         </form>
       </div>
 
-      <!-- Tabla de Registros -->
-      <div class="lg:col-span-8 bg-slate-800 border border-slate-700 rounded-xl shadow-lg overflow-hidden flex flex-col">
+      <!-- Tabla de Registros del Operador -->
+      <div class="lg:col-span-7 bg-slate-800 border border-slate-700 rounded-xl shadow-lg overflow-hidden flex flex-col">
         <div class="p-4 border-b border-slate-700 bg-slate-800/50 flex flex-col sm:flex-row gap-3 justify-between items-center">
-          <div class="relative w-full sm:w-64">
+          <div class="relative w-full sm:w-56">
             <input type="text" id="searchInput" placeholder="Buscar registros..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
           </div>
@@ -131,10 +149,9 @@
           <table class="w-full text-left text-xs text-slate-300">
             <thead class="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700">
               <tr>
-                <th class="px-4 py-3">Tienda / Horario</th>
-                <th class="px-4 py-3">Novedad</th>
-                <th class="px-4 py-3">Solución</th>
-                <th class="px-4 py-3">Operador</th>
+                <th class="px-4 py-3">Sede / Horario</th>
+                <th class="px-4 py-3">Novedad y Acciones</th>
+                <th class="px-4 py-3">Actuantes</th>
               </tr>
             </thead>
             <tbody id="casesTableBody"></tbody>
