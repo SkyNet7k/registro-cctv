@@ -12,6 +12,8 @@ const STORE_GROUPS = {
 };
 
 let adminCases = [];
+let trendChartInstance = null;
+let doughnutChartInstance = null;
 
 const adminTableBody = document.getElementById('adminTableBody');
 const adminEmptyState = document.getElementById('adminEmptyState');
@@ -19,6 +21,12 @@ const adminSearchInput = document.getElementById('adminSearchInput');
 const adminTableCount = document.getElementById('adminTableCount');
 const btnExportExcel = document.getElementById('btnExportExcel');
 const btnClearAll = document.getElementById('btnClearAll');
+
+// KPI Elements
+const kpiTotalCases = document.getElementById('kpiTotalCases');
+const kpiTopNovelty = document.getElementById('kpiTopNovelty');
+const kpiTopStore = document.getElementById('kpiTopStore');
+const kpiTopOperator = document.getElementById('kpiTopOperator');
 
 // Modal Elements
 const editModal = document.getElementById('editModal');
@@ -43,6 +51,7 @@ async function loadAdminCases() {
     const res = await fetch('/api/casos');
     if (res.ok) {
       adminCases = await res.json();
+      updateDashboard();
       renderAdminTable();
     }
   } catch (err) {
@@ -64,6 +73,111 @@ function populateEditStoreDropdown() {
     });
     editStore.appendChild(optGroup);
   }
+}
+
+// --- ACTUALIZAR KPIS Y GRÁFICOS ---
+function updateDashboard() {
+  const total = adminCases.length;
+  kpiTotalCases.textContent = total;
+
+  if (total === 0) {
+    kpiTopNovelty.textContent = "Ninguna";
+    kpiTopStore.textContent = "Ninguna";
+    kpiTopOperator.textContent = "Ninguno";
+    renderCharts([], []);
+    return;
+  }
+
+  // Contar frecuencias
+  const noveltyCounts = {};
+  const storeCounts = {};
+  const operatorCounts = {};
+
+  adminCases.forEach(c => {
+    noveltyCounts[c.novelty] = (noveltyCounts[c.novelty] || 0) + 1;
+    storeCounts[c.store] = (storeCounts[c.store] || 0) + 1;
+    if (c.operator) {
+      operatorCounts[c.operator] = (operatorCounts[c.operator] || 0) + 1;
+    }
+  });
+
+  const topNovelty = Object.keys(noveltyCounts).reduce((a, b) => noveltyCounts[a] > noveltyCounts[b] ? a : b);
+  const topStore = Object.keys(storeCounts).reduce((a, b) => storeCounts[a] > storeCounts[b] ? a : b);
+  const topOperator = Object.keys(operatorCounts).length > 0 
+    ? Object.keys(operatorCounts).reduce((a, b) => operatorCounts[a] > operatorCounts[b] ? a : b) 
+    : 'N/A';
+
+  kpiTopNovelty.textContent = topNovelty;
+  kpiTopNovelty.title = topNovelty;
+  kpiTopStore.textContent = topStore;
+  kpiTopStore.title = topStore;
+  kpiTopOperator.textContent = topOperator;
+  kpiTopOperator.title = topOperator;
+
+  renderCharts(noveltyCounts, storeCounts);
+}
+
+function renderCharts(noveltyCounts, storeCounts) {
+  // 1. Gráfico de Líneas / Tendencia por Novedad
+  const trendCtx = document.getElementById('trendChart').getContext('2d');
+  const noveltyLabels = Object.keys(noveltyCounts);
+  const noveltyData = Object.values(noveltyCounts);
+
+  if (trendChartInstance) trendChartInstance.destroy();
+
+  trendChartInstance = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: noveltyLabels.length > 0 ? noveltyLabels : ['Sin datos'],
+      datasets: [{
+        label: 'Incidencias',
+        data: noveltyData.length > 0 ? noveltyData : [0],
+        borderColor: '#a855f7',
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#a855f7'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, precision: 0 }, grid: { color: '#334155' } }
+      }
+    }
+  });
+
+  // 2. Gráfico de Dona (Distribución)
+  const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+  
+  if (doughnutChartInstance) doughnutChartInstance.destroy();
+
+  doughnutChartInstance = new Chart(doughnutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: noveltyLabels.length > 0 ? noveltyLabels : ['Sin datos'],
+      datasets: [{
+        data: noveltyData.length > 0 ? noveltyData : [1],
+        backgroundColor: ['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#f43f5e', '#06b6d4', '#64748b'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } }
+        }
+      },
+      cutout: '70%'
+    }
+  });
 }
 
 function renderAdminTable() {
@@ -201,7 +315,7 @@ window.deleteCase = async function(id) {
 // Limpiar todo
 if (btnClearAll) {
   btnClearAll.addEventListener('click', async () => {
-    if (!confirm('⚠️ ¿ADVERTENCIA! ¿Deseas eliminar TODOS los registros de la base de datos? Esta acción no se puede deshacer.')) return;
+    if (!confirm('⚠️ ¡ADVERTENCIA! ¿Deseas eliminar TODOS los registros de la base de datos? Esta acción no se puede deshacer.')) return;
 
     try {
       const res = await fetch('/api/casos', { method: 'DELETE' });
@@ -237,7 +351,6 @@ if (btnExportExcel) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Novedades CCTV");
 
-    // Descargar archivo Excel
     XLSX.writeFile(workbook, `Reporte_CCTV_${new Date().toISOString().slice(0,10)}.xlsx`);
   });
 }
