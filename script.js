@@ -16,6 +16,7 @@ let cases = [];
 // Referencias DOM
 const caseForm = document.getElementById('caseForm');
 const operatorNameInput = document.getElementById('operatorName');
+const displayOperator = document.getElementById('displayOperator');
 const storeSelect = document.getElementById('storeSelect');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
@@ -30,8 +31,6 @@ const searchInput = document.getElementById('searchInput');
 const tableCountInfo = document.getElementById('tableCountInfo');
 
 const btnSetNow = document.getElementById('btnSetNow');
-const btnSubmitForm = document.getElementById('btnSubmitForm');
-const formTitle = document.getElementById('formTitle');
 const btnQuickReport = document.getElementById('btnQuickReport');
 
 // Inicialización
@@ -41,12 +40,23 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCasesFromServer();
 
   const savedOperator = localStorage.getItem('cctv_operator');
-  if (savedOperator) operatorNameInput.value = savedOperator;
+  if (savedOperator) {
+    operatorNameInput.value = savedOperator;
+    updateOperatorDisplay(savedOperator);
+  }
 
-  operatorNameInput.addEventListener('change', () => {
-    localStorage.setItem('cctv_operator', operatorNameInput.value.trim());
+  operatorNameInput.addEventListener('input', () => {
+    const name = operatorNameInput.value.trim();
+    localStorage.setItem('cctv_operator', name);
+    updateOperatorDisplay(name);
   });
 });
+
+function updateOperatorDisplay(name) {
+  if (displayOperator) {
+    displayOperator.textContent = name ? `Op: ${name}` : 'Operador: No asignado';
+  }
+}
 
 function populateStoreDropdown() {
   if (!storeSelect) return;
@@ -95,19 +105,26 @@ async function loadCasesFromServer() {
   }
 }
 
-// Renderizar tabla limpia para el operador
+// Renderizar tabla limpia y sin "undefined"
 function renderCases() {
   if (!casesTableBody) return;
   
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const filtered = cases.filter(c => 
-    (c.store && c.store.toLowerCase().includes(query)) ||
-    (c.novelty && c.novelty.toLowerCase().includes(query)) ||
-    (c.details && c.details.toLowerCase().includes(query)) ||
-    (c.actions && c.actions.toLowerCase().includes(query)) ||
-    (c.actors && c.actors.toLowerCase().includes(query)) ||
-    (c.operator && c.operator.toLowerCase().includes(query))
-  );
+  const filtered = cases.filter(c => {
+    const store = c.store || '';
+    const novelty = c.novelty || '';
+    const details = c.details || c.solution || '';
+    const actions = c.actions || '';
+    const actors = c.actors || '';
+    const operator = c.operator || '';
+
+    return store.toLowerCase().includes(query) ||
+           novelty.toLowerCase().includes(query) ||
+           details.toLowerCase().includes(query) ||
+           actions.toLowerCase().includes(query) ||
+           actors.toLowerCase().includes(query) ||
+           operator.toLowerCase().includes(query);
+  });
 
   casesTableBody.innerHTML = '';
 
@@ -120,6 +137,11 @@ function renderCases() {
       const tr = document.createElement('tr');
       tr.className = "hover:bg-slate-750/50 transition border-b border-slate-700/40";
       
+      // Sanitizar campos vacíos para evitar undefined
+      const detailsText = c.details ? c.details : (c.solution ? c.solution : 'Sin detalle registrado');
+      const actionsText = c.actions ? c.actions : 'N/A';
+      const actorsText = c.actors ? c.actors : '-';
+
       tr.innerHTML = `
         <td class="px-4 py-3 align-top">
           <div class="font-medium text-slate-100">${c.store}</div>
@@ -129,13 +151,13 @@ function renderCases() {
         </td>
         <td class="px-4 py-3 max-w-xs align-top">
           <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-1">
-            ${c.novelty}
+            ${c.novelty || 'General'}
           </span>
-          <p class="text-slate-300 text-xs mb-1"><strong>Novedad:</strong> ${c.details}</p>
-          <p class="text-slate-400 text-[11px]"><strong>Acciones:</strong> ${c.actions}</p>
+          <p class="text-slate-300 text-xs mb-1"><strong>Novedad:</strong> ${detailsText}</p>
+          <p class="text-slate-400 text-[11px]"><strong>Acciones:</strong> ${actionsText}</p>
         </td>
         <td class="px-4 py-3 text-slate-300 text-xs align-top">
-          ${c.actors}
+          ${actorsText}
         </td>
       `;
       casesTableBody.appendChild(tr);
@@ -160,7 +182,6 @@ if (caseForm) {
       details: noveltyDetailsInput.value.trim(),
       actions: actionTextInput.value.trim(),
       actors: actorsTextInput.value.trim(),
-      // Mantenemos compatibilidad con el panel admin mapeando solution y novelty generales
       solution: `Acciones: ${actionTextInput.value.trim()} | Actuantes: ${actorsTextInput.value.trim()}`
     };
 
@@ -184,13 +205,16 @@ if (caseForm) {
 function resetForm() {
   if (caseForm) caseForm.reset();
   const savedOperator = localStorage.getItem('cctv_operator');
-  if (savedOperator && operatorNameInput) operatorNameInput.value = savedOperator;
+  if (savedOperator && operatorNameInput) {
+    operatorNameInput.value = savedOperator;
+    updateOperatorDisplay(savedOperator);
+  }
   setInitialTimes();
 }
 
 if (searchInput) searchInput.addEventListener('input', renderCases);
 
-// Reporte WhatsApp bajo el formato exacto solicitado
+// Reporte WhatsApp con el formato estandarizado
 if (btnQuickReport) {
   btnQuickReport.addEventListener('click', () => {
     if (cases.length === 0) return alert('No hay casos registrados en el turno.');
@@ -198,12 +222,16 @@ if (btnQuickReport) {
     let text = `🚨 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
 
     cases.forEach((c, idx) => {
+      const detailsText = c.details ? c.details : (c.solution ? c.solution : 'Sin detalle registrado');
+      const actionsText = c.actions ? c.actions : 'N/A';
+      const actorsText = c.actors ? c.actors : '-';
+
       text += `*${idx + 1}. Sede: ${c.store}*\n`;
       text += `⏱️ *Horario:* ${c.startTime} a ${c.endTime}\n`;
-      text += `📌 *Tipo:* ${c.novelty}\n`;
-      text += `📝 *Novedad:* ${c.details}\n`;
-      text += `⚙️ *Acciones:* ${c.actions}\n`;
-      text += `👤 *Actuante / Involucrados:* ${c.actors}\n\n`;
+      text += `📌 *Tipo:* ${c.novelty || 'General'}\n`;
+      text += `📝 *Novedad:* ${detailsText}\n`;
+      text += `⚙️ *Acciones:* ${actionsText}\n`;
+      text += `👤 *Actuante / Involucrados:* ${actorsText}\n\n`;
     });
 
     text += `===================================\n📊 *Total Novedades en Turno:* ${cases.length}`;
