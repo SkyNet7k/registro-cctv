@@ -79,13 +79,13 @@ function populateEditStoreDropdown() {
 // --- ACTUALIZAR KPIS Y GRÁFICOS ---
 function updateDashboard() {
   const total = adminCases.length;
-  kpiTotalCases.textContent = total;
+  if (kpiTotalCases) kpiTotalCases.textContent = total;
 
   if (total === 0) {
-    kpiTopNovelty.textContent = "Ninguna";
-    kpiTopStore.textContent = "Ninguna";
-    kpiTopOperator.textContent = "Ninguno";
-    renderCharts([], []);
+    if (kpiTopNovelty) kpiTopNovelty.textContent = "Ninguna";
+    if (kpiTopStore) kpiTopStore.textContent = "Ninguna";
+    if (kpiTopOperator) kpiTopOperator.textContent = "Ninguno";
+    renderCharts({}, {});
     return;
   }
 
@@ -95,38 +95,42 @@ function updateDashboard() {
   const operatorCounts = {};
 
   adminCases.forEach(c => {
-    noveltyCounts[c.novelty] = (noveltyCounts[c.novelty] || 0) + 1;
-    storeCounts[c.store] = (storeCounts[c.store] || 0) + 1;
-    if (c.operator) {
-      operatorCounts[c.operator] = (operatorCounts[c.operator] || 0) + 1;
-    }
+    if (c.novelty) noveltyCounts[c.novelty] = (noveltyCounts[c.novelty] || 0) + 1;
+    if (c.store) storeCounts[c.store] = (storeCounts[c.store] || 0) + 1;
+    if (c.operator) operatorCounts[c.operator] = (operatorCounts[c.operator] || 0) + 1;
   });
 
-  const topNovelty = Object.keys(noveltyCounts).reduce((a, b) => noveltyCounts[a] > noveltyCounts[b] ? a : b);
-  const topStore = Object.keys(storeCounts).reduce((a, b) => storeCounts[a] > storeCounts[b] ? a : b);
+  const topNovelty = Object.keys(noveltyCounts).length > 0 
+    ? Object.keys(noveltyCounts).reduce((a, b) => noveltyCounts[a] > noveltyCounts[b] ? a : b) 
+    : "Ninguna";
+
+  const topStore = Object.keys(storeCounts).length > 0 
+    ? Object.keys(storeCounts).reduce((a, b) => storeCounts[a] > storeCounts[b] ? a : b) 
+    : "Ninguna";
+
   const topOperator = Object.keys(operatorCounts).length > 0 
     ? Object.keys(operatorCounts).reduce((a, b) => operatorCounts[a] > operatorCounts[b] ? a : b) 
     : 'N/A';
 
-  kpiTopNovelty.textContent = topNovelty;
-  kpiTopNovelty.title = topNovelty;
-  kpiTopStore.textContent = topStore;
-  kpiTopStore.title = topStore;
-  kpiTopOperator.textContent = topOperator;
-  kpiTopOperator.title = topOperator;
+  if (kpiTopNovelty) { kpiTopNovelty.textContent = topNovelty; kpiTopNovelty.title = topNovelty; }
+  if (kpiTopStore) { kpiTopStore.textContent = topStore; kpiTopStore.title = topStore; }
+  if (kpiTopOperator) { kpiTopOperator.textContent = topOperator; kpiTopOperator.title = topOperator; }
 
   renderCharts(noveltyCounts, storeCounts);
 }
 
 function renderCharts(noveltyCounts, storeCounts) {
-  // 1. Gráfico de Líneas / Tendencia por Novedad
-  const trendCtx = document.getElementById('trendChart').getContext('2d');
+  const trendCanvas = document.getElementById('trendChart');
+  const doughnutCanvas = document.getElementById('doughnutChart');
+
+  if (!trendCanvas || !doughnutCanvas) return;
+
   const noveltyLabels = Object.keys(noveltyCounts);
   const noveltyData = Object.values(noveltyCounts);
 
+  // 1. Gráfico de Líneas / Tendencia por Novedad
   if (trendChartInstance) trendChartInstance.destroy();
-
-  trendChartInstance = new Chart(trendCtx, {
+  trendChartInstance = new Chart(trendCanvas.getContext('2d'), {
     type: 'line',
     data: {
       labels: noveltyLabels.length > 0 ? noveltyLabels : ['Sin datos'],
@@ -153,11 +157,8 @@ function renderCharts(noveltyCounts, storeCounts) {
   });
 
   // 2. Gráfico de Dona (Distribución)
-  const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
-  
   if (doughnutChartInstance) doughnutChartInstance.destroy();
-
-  doughnutChartInstance = new Chart(doughnutCtx, {
+  doughnutChartInstance = new Chart(doughnutCanvas.getContext('2d'), {
     type: 'doughnut',
     data: {
       labels: noveltyLabels.length > 0 ? noveltyLabels : ['Sin datos'],
@@ -205,21 +206,21 @@ function renderAdminTable() {
       
       tr.innerHTML = `
         <td class="px-4 py-3">
-          <div class="font-medium text-slate-100">${c.store}</div>
+          <div class="font-medium text-slate-100">${c.store || 'N/A'}</div>
           <div class="text-[10px] text-slate-400 mt-0.5">
-            <i class="fa-regular fa-clock mr-1"></i>${c.startTime} - ${c.endTime}
+            <i class="fa-regular fa-clock mr-1"></i>${c.startTime || '00:00'} - ${c.endTime || '00:00'}
           </div>
         </td>
         <td class="px-4 py-3">
           <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            ${c.novelty}
+            ${c.novelty || 'Otro'}
           </span>
         </td>
         <td class="px-4 py-3 max-w-xs">
-          <p class="truncate text-slate-300 text-xs" title="${c.solution}">${c.solution}</p>
+          <p class="truncate text-slate-300 text-xs" title="${c.solution || ''}">${c.solution || '-'}</p>
         </td>
         <td class="px-4 py-3 text-slate-400 whitespace-nowrap">
-          ${c.operator}
+          ${c.operator || 'S/N'}
         </td>
         <td class="px-4 py-3 text-center whitespace-nowrap space-x-2">
           <button onclick="openEditModal('${c.id}')" class="px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded transition" title="Editar">
@@ -239,7 +240,7 @@ function renderAdminTable() {
 
 if (adminSearchInput) adminSearchInput.addEventListener('input', renderAdminTable);
 
-// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT ---
+// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT (ROBUSTA) ---
 if (txtFileInput) {
   txtFileInput.addEventListener('change', async (e) => {
     const files = e.target.files;
@@ -250,7 +251,10 @@ if (txtFileInput) {
     for (const file of files) {
       try {
         const textContent = await readFileContent(file);
-        const parsedCases = parseTxtReport(textContent);
+        if (!textContent || textContent.trim() === "") continue;
+
+        const fileName = file.name.replace(/\.[^/.]+$/, ""); 
+        const parsedCases = parseTxtReport(textContent, fileName);
 
         for (const caseData of parsedCases) {
           const res = await fetch('/api/casos', {
@@ -283,54 +287,49 @@ function readFileContent(file) {
   });
 }
 
-function parseTxtReport(text) {
+function parseTxtReport(text, fileName) {
   const cases = [];
   const lines = text.split(/\r?\n/);
 
-  let currentCase = {
-    operator: "Operador Importado",
-    store: "Vecinos-1",
-    startTime: "08:00",
-    endTime: "16:00",
-    novelty: "Otro",
-    solution: ""
-  };
+  let detectedStore = "Vecinos-1";
+  let detectedOperator = "Operador Importado";
+  let detectedNovelty = "Incidencia de Personal";
+  let solutionText = "";
 
   lines.forEach(line => {
     const lower = line.toLowerCase();
     
     if (lower.includes('tienda') || lower.includes('sucursal') || lower.includes('sede')) {
       const parts = line.split(':');
-      if (parts.length > 1) currentCase.store = parts[1].trim();
+      if (parts.length > 1 && parts[1].trim() !== "") detectedStore = parts[1].trim();
     } else if (lower.includes('operador') || lower.includes('responsable')) {
       const parts = line.split(':');
-      if (parts.length > 1) currentCase.operator = parts[1].trim();
+      if (parts.length > 1 && parts[1].trim() !== "") detectedOperator = parts[1].trim();
     } else if (lower.includes('novedad') || lower.includes('incidencia')) {
       const parts = line.split(':');
-      if (parts.length > 1) currentCase.novelty = parts[1].trim();
-    } else if (line.trim() !== '') {
-      currentCase.solution += line.trim() + " ";
+      if (parts.length > 1 && parts[1].trim() !== "") detectedNovelty = parts[1].trim();
+    } else {
+      solutionText += line.trim() + " ";
     }
   });
 
-  if (currentCase.solution.trim() !== "") {
-    currentCase.solution = currentCase.solution.trim();
-    cases.push({ ...currentCase });
-  } else {
-    cases.push({
-      operator: "Sistema Automático",
-      store: "Vecinos-1",
-      startTime: "00:00",
-      endTime: "23:59",
-      novelty: "Incidencia de Personal",
-      solution: text.slice(0, 500)
-    });
+  if (solutionText.trim() === "") {
+    solutionText = text.trim();
   }
+
+  cases.push({
+    operator: detectedOperator,
+    store: detectedStore,
+    startTime: "08:00",
+    endTime: "16:00",
+    novelty: detectedNovelty,
+    solution: `[Archivo: ${fileName}] ${solutionText.trim()}`
+  });
 
   return cases;
 }
 
-// --- ACCIONES CRUD ---
+// --- ACCIONES CRUD Y MODAL ---
 
 window.openEditModal = function(id) {
   const c = adminCases.find(item => item.id === id);
@@ -344,11 +343,11 @@ window.openEditModal = function(id) {
   editNovelty.value = c.novelty || '';
   editSolution.value = c.solution || '';
 
-  editModal.classList.remove('hidden');
+  if (editModal) editModal.classList.remove('hidden');
 };
 
 function closeModal() {
-  editModal.classList.add('hidden');
+  if (editModal) editModal.classList.add('hidden');
 }
 
 if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
