@@ -208,7 +208,7 @@ function renderAdminTable() {
         <td class="px-4 py-3">
           <div class="font-medium text-slate-100">${c.store || 'N/A'}</div>
           <div class="text-[10px] text-slate-400 mt-0.5">
-            <i class="fa-regular fa-clock mr-1"></i>${c.startTime || '00:00'} - ${c.endTime || '00:00'}
+            <i class="fa-regular fa-clock mr-1"></i>${c.startTime || '08:00'} - ${c.endTime || '16:00'}
           </div>
         </td>
         <td class="px-4 py-3">
@@ -220,7 +220,7 @@ function renderAdminTable() {
           <p class="truncate text-slate-300 text-xs" title="${c.solution || ''}">${c.solution || '-'}</p>
         </td>
         <td class="px-4 py-3 text-slate-400 whitespace-nowrap">
-          ${c.operator || 'S/N'}
+          ${c.operator || 'Operador Importado'}
         </td>
         <td class="px-4 py-3 text-center whitespace-nowrap space-x-2">
           <button onclick="openEditModal('${c.id}')" class="px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded transition" title="Editar">
@@ -240,7 +240,7 @@ function renderAdminTable() {
 
 if (adminSearchInput) adminSearchInput.addEventListener('input', renderAdminTable);
 
-// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT (ROBUSTA) ---
+// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT (INTELIGENTE Y MÚLTIPLE) ---
 if (txtFileInput) {
   txtFileInput.addEventListener('change', async (e) => {
     const files = e.target.files;
@@ -273,7 +273,7 @@ if (txtFileInput) {
     }
 
     txtFileInput.value = '';
-    alert(`¡Importación exitosa! Se registraron ${importedCount} casos en la base de datos.`);
+    alert(`¡Importación exitosa! Se registraron ${importedCount} casos individuales en la base de datos.`);
     loadAdminCases();
   });
 }
@@ -289,41 +289,90 @@ function readFileContent(file) {
 
 function parseTxtReport(text, fileName) {
   const cases = [];
-  const lines = text.split(/\r?\n/);
 
-  let detectedStore = "Vecinos-1";
-  let detectedOperator = "Operador Importado";
-  let detectedNovelty = "Incidencia de Personal";
-  let solutionText = "";
+  // Dividir el archivo en bloques independientes basándonos en los encabezados de sede o departamento
+  const rawBlocks = text.split(/(?=\bSede\b|\*Sede|\*Departamento de seguridad|\*Dpto|\bDepartamento de seguridad)/i);
 
-  lines.forEach(line => {
-    const lower = line.toLowerCase();
-    
-    if (lower.includes('tienda') || lower.includes('sucursal') || lower.includes('sede')) {
-      const parts = line.split(':');
-      if (parts.length > 1 && parts[1].trim() !== "") detectedStore = parts[1].trim();
-    } else if (lower.includes('operador') || lower.includes('responsable')) {
-      const parts = line.split(':');
-      if (parts.length > 1 && parts[1].trim() !== "") detectedOperator = parts[1].trim();
-    } else if (lower.includes('novedad') || lower.includes('incidencia')) {
-      const parts = line.split(':');
-      if (parts.length > 1 && parts[1].trim() !== "") detectedNovelty = parts[1].trim();
-    } else {
-      solutionText += line.trim() + " ";
+  rawBlocks.forEach((block) => {
+    const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) return;
+
+    let detectedStore = "Sucursal General";
+    let detectedOperator = "Operador Importado";
+    let noveltyDetails = [];
+    let solutionText = [];
+    let actionText = [];
+    let actorsText = [];
+
+    lines.forEach(line => {
+      const cleanLine = line.replace(/^\*+|\*+$/g, '').trim();
+      const lower = cleanLine.toLowerCase();
+
+      if (lower.startsWith('sede:') || lower.startsWith('sede #') || lower.startsWith('sede')) {
+        const parts = cleanLine.split(':');
+        if (parts.length > 1 && parts[1].trim() !== "") {
+          detectedStore = parts[1].trim();
+        } else {
+          detectedStore = cleanLine.replace(/sede/gi, '').trim();
+        }
+      } else if (lower.startsWith('novedad:') || lower.startsWith('notificación:') || lower.startsWith('novedad')) {
+        const parts = cleanLine.split(':');
+        if (parts.length > 1 && parts[1].trim() !== "") {
+          noveltyDetails.push(parts[1].trim());
+        }
+      } else if (lower.startsWith('solución:') || lower.startsWith('soluciones:') || lower.startsWith('solución') || lower.startsWith('solucione')) {
+        const parts = cleanLine.split(':');
+        if (parts.length > 1 && parts[1].trim() !== "") {
+          solutionText.push(parts[1].trim());
+        }
+      } else if (lower.startsWith('acciones:') || lower.startsWith('acción:')) {
+        const parts = cleanLine.split(':');
+        if (parts.length > 1 && parts[1].trim() !== "") {
+          actionText.push(parts[1].trim());
+        }
+      } else if (lower.startsWith('actuante:') || lower.startsWith('actuantes:') || lower.startsWith('actuates:')) {
+        const parts = cleanLine.split(':');
+        if (parts.length > 1 && parts[1].trim() !== "") {
+          actorsText.push(parts[1].trim());
+        }
+      } else {
+        if (!lower.includes('dpto. de seguridad') && !lower.includes('departamento de seguridad')) {
+          noveltyDetails.push(cleanLine);
+        }
+      }
+    });
+
+    const fullDetails = noveltyDetails.join(' ') || 'Reporte importado desde archivo de texto';
+    const fullSolution = solutionText.join(' ') || 'N/A';
+    const fullActions = actionText.join(' ') || 'N/A';
+    const fullActors = actorsText.join(' ') || '-';
+
+    // Categorización automática según el contenido del texto
+    let category = "Otro / General";
+    const textCheck = fullDetails.toLowerCase();
+    if (textCheck.includes('accidente') || textCheck.includes('corta') || textCheck.includes('herida') || textCheck.includes('se siente mal')) {
+      category = "Accidente Laboral";
+    } else if (textCheck.includes('hurto') || textCheck.includes('tentativa') || textCheck.includes('roba') || textCheck.includes('inmoviliz')) {
+      category = "Hurto / Tentativa";
+    } else if (textCheck.includes('sospechos') || textCheck.includes('tercera edad')) {
+      category = "Actitud Sospechosa";
+    } else if (textCheck.includes('bolso') || textCheck.includes('olvidada') || textCheck.includes('bolsa')) {
+      category = "Incidencia de Personal";
     }
-  });
 
-  if (solutionText.trim() === "") {
-    solutionText = text.trim();
-  }
-
-  cases.push({
-    operator: detectedOperator,
-    store: detectedStore,
-    startTime: "08:00",
-    endTime: "16:00",
-    novelty: detectedNovelty,
-    solution: `[Archivo: ${fileName}] ${solutionText.trim()}`
+    cases.push({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      operator: detectedOperator,
+      store: detectedStore,
+      startTime: "08:00",
+      endTime: "16:00",
+      novelty: category,
+      details: fullDetails,
+      solution: `Solución: ${fullSolution} | Acciones: ${fullActions} | Actuantes: ${fullActors}`,
+      actions: fullActions,
+      actors: fullActors,
+      createdAt: new Date().toISOString()
+    });
   });
 
   return cases;
