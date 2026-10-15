@@ -22,6 +22,7 @@ const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
 const noveltyTypeSelect = document.getElementById('noveltyType');
 const noveltyDetailsInput = document.getElementById('noveltyDetails');
+const solutionTextInput = document.getElementById('solutionText'); // <--- Nuevo campo DOM
 const actionTextInput = document.getElementById('actionText');
 const actorsTextInput = document.getElementById('actorsText');
 
@@ -105,7 +106,7 @@ async function loadCasesFromServer() {
   }
 }
 
-// Renderizar tabla limpia y sin "undefined"
+// Renderizar tabla limpia incorporando Soluciones
 function renderCases() {
   if (!casesTableBody) return;
   
@@ -113,7 +114,8 @@ function renderCases() {
   const filtered = cases.filter(c => {
     const store = c.store || '';
     const novelty = c.novelty || '';
-    const details = c.details || c.solution || '';
+    const details = c.details || '';
+    const solution = c.solution || '';
     const actions = c.actions || '';
     const actors = c.actors || '';
     const operator = c.operator || '';
@@ -121,6 +123,7 @@ function renderCases() {
     return store.toLowerCase().includes(query) ||
            novelty.toLowerCase().includes(query) ||
            details.toLowerCase().includes(query) ||
+           solution.toLowerCase().includes(query) ||
            actions.toLowerCase().includes(query) ||
            actors.toLowerCase().includes(query) ||
            operator.toLowerCase().includes(query);
@@ -137,8 +140,8 @@ function renderCases() {
       const tr = document.createElement('tr');
       tr.className = "hover:bg-slate-750/50 transition border-b border-slate-700/40";
       
-      // Sanitizar campos vacíos para evitar undefined
-      const detailsText = c.details ? c.details : (c.solution ? c.solution : 'Sin detalle registrado');
+      const detailsText = c.details ? c.details : 'Sin detalle registrado';
+      const solutionText = c.solution ? c.solution : 'N/A';
       const actionsText = c.actions ? c.actions : 'N/A';
       const actorsText = c.actors ? c.actors : '-';
 
@@ -154,6 +157,7 @@ function renderCases() {
             ${c.novelty || 'General'}
           </span>
           <p class="text-slate-300 text-xs mb-1"><strong>Novedad:</strong> ${detailsText}</p>
+          <p class="text-slate-300 text-xs mb-1"><strong>Soluciones:</strong> ${solutionText}</p>
           <p class="text-slate-400 text-[11px]"><strong>Acciones:</strong> ${actionsText}</p>
         </td>
         <td class="px-4 py-3 text-slate-300 text-xs align-top">
@@ -180,9 +184,9 @@ if (caseForm) {
       endTime: endTimeInput.value,
       novelty: noveltyTypeSelect.value,
       details: noveltyDetailsInput.value.trim(),
+      solution: solutionTextInput.value.trim(), // <--- Soluciones guardado individualmente
       actions: actionTextInput.value.trim(),
-      actors: actorsTextInput.value.trim(),
-      solution: `Acciones: ${actionTextInput.value.trim()} | Actuantes: ${actorsTextInput.value.trim()}`
+      actors: actorsTextInput.value.trim()
     };
 
     try {
@@ -214,7 +218,7 @@ function resetForm() {
 
 if (searchInput) searchInput.addEventListener('input', renderCases);
 
-// Reporte WhatsApp con el formato estandarizado
+// Reporte WhatsApp con el formato estandarizado incluyendo Soluciones
 if (btnQuickReport) {
   btnQuickReport.addEventListener('click', () => {
     if (cases.length === 0) return alert('No hay casos registrados en el turno.');
@@ -222,7 +226,8 @@ if (btnQuickReport) {
     let text = `🚨 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
 
     cases.forEach((c, idx) => {
-      const detailsText = c.details ? c.details : (c.solution ? c.solution : 'Sin detalle registrado');
+      const detailsText = c.details ? c.details : 'Sin detalle registrado';
+      const solutionText = c.solution ? c.solution : 'N/A';
       const actionsText = c.actions ? c.actions : 'N/A';
       const actorsText = c.actors ? c.actors : '-';
 
@@ -230,6 +235,7 @@ if (btnQuickReport) {
       text += `⏱️ *Horario:* ${c.startTime} a ${c.endTime}\n`;
       text += `📌 *Tipo:* ${c.novelty || 'General'}\n`;
       text += `📝 *Novedad:* ${detailsText}\n`;
+      text += `💡 *Soluciones:* ${solutionText}\n`;
       text += `⚙️ *Acciones:* ${actionsText}\n`;
       text += `👤 *Actuante / Involucrados:* ${actorsText}\n\n`;
     });

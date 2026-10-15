@@ -102,16 +102,22 @@
             <textarea id="noveltyDetails" rows="3" required placeholder="Ej. El Supervisor Reinoso informa sobre incidente en charcutería..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
           </div>
 
+          <!-- Nuevo Campo: Soluciones -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Soluciones</label>
+            <textarea id="solutionText" rows="2" required placeholder="Ej. Se comparte video con el jefe de zona y se entregan productos..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+          </div>
+
           <!-- Acciones Tomadas -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">Acciones Tomadas</label>
-            <textarea id="actionText" rows="2" required placeholder="Ej. Se envía video al Jefe de Zona Torrealba..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+            <textarea id="actionText" rows="2" required placeholder="Ej. Se le hace un llamado de atención..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
           </div>
 
           <!-- Actuantes / Involucrados -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">Actuantes / Involucrados (Supervisores, Jefes)</label>
-            <input type="text" id="actorsText" required placeholder="Ej. Sup. Reinoso, Jefe de zona: Torrealba" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="text" id="actorsText" required placeholder="Ej. Sup. Vera, Torrealba, Moscote" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
 
           <!-- Botón Guardar -->
@@ -156,7 +162,7 @@
             <thead class="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700">
               <tr>
                 <th class="px-4 py-3">Sede / Horario</th>
-                <th class="px-4 py-3">Novedad y Acciones</th>
+                <th class="px-4 py-3">Novedad, Soluciones y Acciones</th>
                 <th class="px-4 py-3">Actuantes</th>
               </tr>
             </thead>
