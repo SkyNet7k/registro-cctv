@@ -290,7 +290,6 @@ function readFileContent(file) {
 function parseTxtReport(text, fileName) {
   const cases = [];
 
-  // Dividir el archivo en bloques independientes basándonos en los encabezados de sede o departamento
   const rawBlocks = text.split(/(?=\bSede\b|\*Sede|\*Departamento de seguridad|\*Dpto|\bDepartamento de seguridad)/i);
 
   rawBlocks.forEach((block) => {
@@ -347,7 +346,6 @@ function parseTxtReport(text, fileName) {
     const fullActions = actionText.join(' ') || 'N/A';
     const fullActors = actorsText.join(' ') || '-';
 
-    // Categorización automática según el contenido del texto
     let category = "Otro / General";
     const textCheck = fullDetails.toLowerCase();
     if (textCheck.includes('accidente') || textCheck.includes('corta') || textCheck.includes('herida') || textCheck.includes('se siente mal')) {
@@ -465,7 +463,7 @@ if (btnClearAll) {
   });
 }
 
-// --- EXPORTAR A EXCEL (SheetJS) ---
+// --- EXPORTAR A EXCEL EJECUTIVO (MULTIHOTAS CON ESTADÍSTICAS) ---
 if (btnExportExcel) {
   btnExportExcel.addEventListener('click', () => {
     if (adminCases.length === 0) {
@@ -473,21 +471,60 @@ if (btnExportExcel) {
       return;
     }
 
+    // 1. Datos detallados para la primera hoja
     const dataFormatted = adminCases.map((c, index) => ({
       "N°": index + 1,
-      "Tienda / Sucursal": c.store,
-      "Operador CCTV": c.operator,
-      "Hora Inicio": c.startTime,
-      "Hora Fin": c.endTime,
-      "Tipo de Novedad": c.novelty,
-      "Solución / Observaciones": c.solution,
+      "Tienda / Sucursal": c.store || 'N/A',
+      "Operador CCTV": c.operator || 'Operador Importado',
+      "Hora Inicio": c.startTime || '08:00',
+      "Hora Fin": c.endTime || '16:00',
+      "Tipo de Novedad": c.novelty || 'General',
+      "Solución / Observaciones": c.solution || '-',
       "Fecha Registro": c.createdAt ? new Date(c.createdAt).toLocaleString() : ''
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataFormatted);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Novedades CCTV");
+    // 2. Procesamiento de estadísticas para las hojas de resumen
+    const noveltyCounts = {};
+    const storeCounts = {};
+    const operatorCounts = {};
 
-    XLSX.writeFile(workbook, `Reporte_CCTV_${new Date().toISOString().slice(0,10)}.xlsx`);
+    adminCases.forEach(c => {
+      const nov = c.novelty || 'General';
+      const sto = c.store || 'Sucursal General';
+      const op = c.operator || 'Operador S/N';
+
+      noveltyCounts[nov] = (noveltyCounts[nov] || 0) + 1;
+      storeCounts[sto] = (storeCounts[sto] || 0) + 1;
+      operatorCounts[op] = (operatorCounts[op] || 0) + 1;
+    });
+
+    const noveltySummary = Object.keys(noveltyCounts).map(k => ({ "Tipo de Novedad": k, "Total Casos": noveltyCounts[k] }));
+    const storeSummary = Object.keys(storeCounts).map(k => ({ "Sucursal / Tienda": k, "Total Casos": storeCounts[k] }));
+    const operatorSummary = Object.keys(operatorCounts).map(k => ({ "Operador CCTV": k, "Casos Atendidos": operatorCounts[k] }));
+
+    // 3. Creación del libro y adición de las hojas con anchos profesionales
+    const workbook = XLSX.utils.book_new();
+
+    const wsDetails = XLSX.utils.json_to_sheet(dataFormatted);
+    wsDetails['!cols'] = [
+      { wch: 6 },  { wch: 18 }, { wch: 20 }, { wch: 12 }, 
+      { wch: 12 }, { wch: 28 }, { wch: 45 }, { wch: 20 }
+    ];
+    XLSX.utils.book_append_sheet(workbook, wsDetails, "Novedades CCTV");
+
+    const wsStatsNovelty = XLSX.utils.json_to_sheet(noveltySummary);
+    wsStatsNovelty['!cols'] = [{ wch: 32 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, wsStatsNovelty, "Estadísticas Novedades");
+
+    const wsStatsStore = XLSX.utils.json_to_sheet(storeSummary);
+    wsStatsStore['!cols'] = [{ wch: 25 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, wsStatsStore, "Estadísticas Sucursales");
+
+    const wsStatsOperator = XLSX.utils.json_to_sheet(operatorSummary);
+    wsStatsOperator['!cols'] = [{ wch: 25 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, wsStatsOperator, "Rendimiento Operadores");
+
+    // 4. Descarga del reporte corporativo moderno
+    XLSX.writeFile(workbook, `Reporte_Ejecutivo_CCTV_${new Date().toISOString().slice(0,10)}.xlsx`);
   });
 }
