@@ -101,7 +101,7 @@
       <div class="lg:col-span-8 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col">
         <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
           <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-chart-line text-purple-400">></i>
+            <i class="fa-solid fa-chart-line text-purple-400"></i>
             Tendencia de Casos por Tipo de Novedad
           </h3>
           <span class="text-xs text-slate-400">Estadísticas Generales</span>
@@ -133,8 +133,16 @@
         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
       </div>
       
-      <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
         <span id="adminTableCount" class="text-xs text-slate-400">Mostrando 0 registros</span>
+        
+        <!-- Botón para Importar TXT -->
+        <label for="txtFileInput" class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow cursor-pointer transition">
+          <i class="fa-solid fa-file-arrow-up"></i>
+          Importar TXT
+        </label>
+        <input type="file" id="txtFileInput" accept=".txt" multiple class="hidden">
+
         <button id="btnClearAll" class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded-lg transition">
           <i class="fa-solid fa-trash-can"></i>
           Limpiar Todo
@@ -175,60 +183,3 @@
           Editar Registro de Novedad
         </h3>
         <button id="btnCloseModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <form id="editForm" class="space-y-4">
-        <input type="hidden" id="editId">
-        
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Operador CCTV</label>
-            <input type="text" id="editOperator" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Tienda / Sucursal</label>
-            <select id="editStore" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"></select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Hora Inicio</label>
-            <input type="time" id="editStartTime" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Hora Fin</label>
-            <input type="time" id="editEndTime" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">Tipo de Novedad</label>
-          <select id="editNovelty" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-            <option value="Hurto / Tentativa">Hurto / Tentativa</option>
-            <option value="Actitud Sospechosa">Actitud Sospechosa</option>
-            <option value="Falla Técnica CCTV / Cámaras">Falla Técnica CCTV / Cámaras</option>
-            <option value="Incidencia de Personal">Incidencia de Personal</option>
-            <option value="Apertura / Cierre de Tienda">Apertura / Cierre de Tienda</option>
-            <option value="Falla Eléctrica / Red">Falla Eléctrica / Red</option>
-            <option value="Otro">Otro / General</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">Solución / Observaciones</label>
-          <textarea id="editSolution" rows="3" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
-        </div>
-
-        <div class="flex justify-end gap-3 pt-2">
-          <button type="button" id="btnCancelEdit" class="px-4 py-2 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition">Cancelar</button>
-          <button type="submit" class="px-4 py-2 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition shadow-lg shadow-purple-600/30">Guardar Cambios</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Script Admin -->
-  <script src="admin.js"></script>
-</body>
-</html>

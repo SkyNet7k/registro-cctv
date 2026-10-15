@@ -21,6 +21,7 @@ const adminSearchInput = document.getElementById('adminSearchInput');
 const adminTableCount = document.getElementById('adminTableCount');
 const btnExportExcel = document.getElementById('btnExportExcel');
 const btnClearAll = document.getElementById('btnClearAll');
+const txtFileInput = document.getElementById('txtFileInput');
 
 // KPI Elements
 const kpiTotalCases = document.getElementById('kpiTotalCases');
@@ -238,6 +239,97 @@ function renderAdminTable() {
 
 if (adminSearchInput) adminSearchInput.addEventListener('input', renderAdminTable);
 
+// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT ---
+if (txtFileInput) {
+  txtFileInput.addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    let importedCount = 0;
+
+    for (const file of files) {
+      try {
+        const textContent = await readFileContent(file);
+        const parsedCases = parseTxtReport(textContent);
+
+        for (const caseData of parsedCases) {
+          const res = await fetch('/api/casos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(caseData)
+          });
+
+          if (res.ok) {
+            importedCount++;
+          }
+        }
+      } catch (err) {
+        console.error(`Error al procesar el archivo ${file.name}:`, err);
+      }
+    }
+
+    txtFileInput.value = '';
+    alert(`¡Importación exitosa! Se registraron ${importedCount} casos en la base de datos.`);
+    loadAdminCases();
+  });
+}
+
+function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target.result);
+    reader.onerror = (error) => reject(error);
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function parseTxtReport(text) {
+  const cases = [];
+  const lines = text.split(/\r?\n/);
+
+  let currentCase = {
+    operator: "Operador Importado",
+    store: "Vecinos-1",
+    startTime: "08:00",
+    endTime: "16:00",
+    novelty: "Otro",
+    solution: ""
+  };
+
+  lines.forEach(line => {
+    const lower = line.toLowerCase();
+    
+    if (lower.includes('tienda') || lower.includes('sucursal') || lower.includes('sede')) {
+      const parts = line.split(':');
+      if (parts.length > 1) currentCase.store = parts[1].trim();
+    } else if (lower.includes('operador') || lower.includes('responsable')) {
+      const parts = line.split(':');
+      if (parts.length > 1) currentCase.operator = parts[1].trim();
+    } else if (lower.includes('novedad') || lower.includes('incidencia')) {
+      const parts = line.split(':');
+      if (parts.length > 1) currentCase.novelty = parts[1].trim();
+    } else if (line.trim() !== '') {
+      currentCase.solution += line.trim() + " ";
+    }
+  });
+
+  if (currentCase.solution.trim() !== "") {
+    currentCase.solution = currentCase.solution.trim();
+    cases.push({ ...currentCase });
+  } else {
+    cases.push({
+      operator: "Sistema Automático",
+      store: "Vecinos-1",
+      startTime: "00:00",
+      endTime: "23:59",
+      novelty: "Incidencia de Personal",
+      solution: text.slice(0, 500)
+    });
+  }
+
+  return cases;
+}
+
 // --- ACCIONES CRUD ---
 
 window.openEditModal = function(id) {
@@ -262,7 +354,6 @@ function closeModal() {
 if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
 if (btnCancelEdit) btnCancelEdit.addEventListener('click', closeModal);
 
-// Guardar edición
 if (editForm) {
   editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -296,7 +387,6 @@ if (editForm) {
   });
 }
 
-// Eliminar caso individual
 window.deleteCase = async function(id) {
   if (!confirm('¿Estás seguro de eliminar este registro de novedad?')) return;
 
@@ -312,7 +402,6 @@ window.deleteCase = async function(id) {
   }
 };
 
-// Limpiar todo
 if (btnClearAll) {
   btnClearAll.addEventListener('click', async () => {
     if (!confirm('⚠️ ¡ADVERTENCIA! ¿Deseas eliminar TODOS los registros de la base de datos? Esta acción no se puede deshacer.')) return;
