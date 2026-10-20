@@ -40,11 +40,17 @@ app.use(express.static(__dirname));
 
 // --- RUTAS DE API (REST API con PostgreSQL) ---
 
-// 1. Obtener todos los casos[cite: 5]
+// 1. Obtener todos los casos asegurando la fecha desde la base de datos
 app.get('/api/casos', async (req, res) => {
   try {
-    const result = await pool.query('SELECT data FROM casos ORDER BY created_at DESC');
-    const cases = result.rows.map(row => row.data);
+    const result = await pool.query('SELECT data, created_at FROM casos ORDER BY created_at DESC');
+    const cases = result.rows.map(row => {
+      let caseObj = row.data || {};
+      if (!caseObj.createdAt) {
+        caseObj.createdAt = row.created_at || new Date().toISOString();
+      }
+      return caseObj;
+    });
     res.json(cases);
   } catch (err) {
     console.error('Error al obtener casos:', err);
@@ -86,7 +92,7 @@ app.post('/api/casos', async (req, res) => {
   }
 });
 
-// --- NUEVA RUTA: Actualizar un caso existente por ID (Método PUT) ---
+// Ruta PUT: Actualizar un caso existente por ID
 app.put('/api/casos/:id', async (req, res) => {
   const { id } = req.params;
   const updatedCase = req.body;
@@ -149,7 +155,7 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
         const API_TOKEN = process.env.WA_API_TOKEN;
 
         if (!INSTANCE_ID || !API_TOKEN) {
-            console.log("Mensaje procesado en backend:", mensaje);
+            console.log("Mensaje procesado en servidor:", mensaje);
             return res.json({ success: true, message: "Petición recibida correctamente en el servidor." });
         }
 

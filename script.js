@@ -105,7 +105,7 @@ async function loadCasesFromServer() {
   }
 }
 
-// Renderizar tabla con botón de WhatsApp individual por cada fila
+// Renderizar tabla con fecha extraída de la DB y botón de WhatsApp individual
 function renderCases() {
   if (!casesTableBody) return;
   
@@ -144,9 +144,19 @@ function renderCases() {
       const actionsText = c.actions ? c.actions : 'N/A';
       const actorsText = c.actors ? c.actors : '-';
 
+      // Formatear la fecha obtenida desde la base de datos (Ej: 14/10/2026)
+      const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : 'Fecha s/n';
+
       tr.innerHTML = `
         <td class="px-4 py-3 align-top">
           <div class="font-medium text-slate-100">${c.store}</div>
+          <div class="text-[10px] text-purple-400 mt-0.5">
+            <i class="fa-solid fa-calendar-days mr-1"></i>${fechaReporte}
+          </div>
           <div class="text-[10px] text-slate-400 mt-0.5">
             <i class="fa-regular fa-clock mr-1"></i>${c.startTime} - ${c.endTime}
           </div>
@@ -191,7 +201,8 @@ if (caseForm) {
       details: noveltyDetailsInput.value.trim(),
       solution: solutionTextInput.value.trim(),
       actions: actionTextInput.value.trim(),
-      actors: actorsTextInput.value.trim()
+      actors: actorsTextInput.value.trim(),
+      createdAt: new Date().toISOString()
     };
 
     try {
@@ -233,7 +244,10 @@ function enviarReporteIndividual(id) {
   const actionsText = c.actions ? c.actions : 'N/A';
   const actorsText = c.actors ? c.actors : '-';
 
+  const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES') : '';
+
   let text = `🔒 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
+  if (fechaReporte) text += `📅 *Fecha:* ${fechaReporte}\n`;
   text += `*Sede:* ${c.store}\n`;
   text += `⏰ *Horario:* ${c.startTime} a ${c.endTime}\n`;
   text += `📌 *Tipo:* ${c.novelty || 'General'}\n`;
