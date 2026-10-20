@@ -22,7 +22,7 @@ const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
 const noveltyTypeSelect = document.getElementById('noveltyType');
 const noveltyDetailsInput = document.getElementById('noveltyDetails');
-const solutionTextInput = document.getElementById('solutionText'); // <--- Nuevo campo DOM
+const solutionTextInput = document.getElementById('solutionText');
 const actionTextInput = document.getElementById('actionText');
 const actorsTextInput = document.getElementById('actorsText');
 
@@ -32,7 +32,6 @@ const searchInput = document.getElementById('searchInput');
 const tableCountInfo = document.getElementById('tableCountInfo');
 
 const btnSetNow = document.getElementById('btnSetNow');
-const btnQuickReport = document.getElementById('btnQuickReport');
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
@@ -106,7 +105,7 @@ async function loadCasesFromServer() {
   }
 }
 
-// Renderizar tabla limpia incorporando Soluciones
+// Renderizar tabla con botón de WhatsApp individual por cada fila
 function renderCases() {
   if (!casesTableBody) return;
   
@@ -163,6 +162,12 @@ function renderCases() {
         <td class="px-4 py-3 text-slate-300 text-xs align-top">
           ${actorsText}
         </td>
+        <td class="px-4 py-3 text-right align-top">
+          <button onclick="enviarReporteIndividual('${c.id}')" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow transition" title="Enviar este reporte por WhatsApp">
+            <i class="fa-brands fa-whatsapp"></i>
+            <span>Enviar</span>
+          </button>
+        </td>
       `;
       casesTableBody.appendChild(tr);
     });
@@ -184,7 +189,7 @@ if (caseForm) {
       endTime: endTimeInput.value,
       novelty: noveltyTypeSelect.value,
       details: noveltyDetailsInput.value.trim(),
-      solution: solutionTextInput.value.trim(), // <--- Soluciones guardado individualmente
+      solution: solutionTextInput.value.trim(),
       actions: actionTextInput.value.trim(),
       actors: actorsTextInput.value.trim()
     };
@@ -218,33 +223,27 @@ function resetForm() {
 
 if (searchInput) searchInput.addEventListener('input', renderCases);
 
-// Reporte WhatsApp con el formato estandarizado incluyendo Soluciones
-if (btnQuickReport) {
-  btnQuickReport.addEventListener('click', () => {
-    if (cases.length === 0) return alert('No hay casos registrados en el turno.');
+// Función exclusiva para enviar únicamente el reporte seleccionado por ID
+function enviarReporteIndividual(id) {
+  const c = cases.find(item => item.id === id);
+  if (!c) return alert('No se encontró el registro seleccionado.');
 
-    let text = `🚨 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
+  const detailsText = c.details ? c.details : 'Sin detalle registrado';
+  const solutionText = c.solution ? c.solution : 'N/A';
+  const actionsText = c.actions ? c.actions : 'N/A';
+  const actorsText = c.actors ? c.actors : '-';
 
-    cases.forEach((c, idx) => {
-      const detailsText = c.details ? c.details : 'Sin detalle registrado';
-      const solutionText = c.solution ? c.solution : 'N/A';
-      const actionsText = c.actions ? c.actions : 'N/A';
-      const actorsText = c.actors ? c.actors : '-';
+  let text = `🔒 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
+  text += `*Sede:* ${c.store}\n`;
+  text += `⏰ *Horario:* ${c.startTime} a ${c.endTime}\n`;
+  text += `📌 *Tipo:* ${c.novelty || 'General'}\n`;
+  text += `📝 *Novedad:* ${detailsText}\n`;
+  text += `💡 *Soluciones:* ${solutionText}\n`;
+  text += `⚙️ *Acciones:* ${actionsText}\n`;
+  text += `👤 *Actuante / Involucrados:* ${actorsText}`;
 
-      text += `*${idx + 1}. Sede: ${c.store}*\n`;
-      text += `⏱️ *Horario:* ${c.startTime} a ${c.endTime}\n`;
-      text += `📌 *Tipo:* ${c.novelty || 'General'}\n`;
-      text += `📝 *Novedad:* ${detailsText}\n`;
-      text += `💡 *Soluciones:* ${solutionText}\n`;
-      text += `⚙️ *Acciones:* ${actionsText}\n`;
-      text += `👤 *Actuante / Involucrados:* ${actorsText}\n\n`;
-    });
+  const phoneNumber = "584126615457";
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
 
-    text += `===================================\n📊 *Total Novedades en Turno:* ${cases.length}`;
-
-    const phoneNumber = "584126615457";
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
-
-    window.open(whatsappUrl, '_blank');
-  });
+  window.open(whatsappUrl, '_blank');
 }
