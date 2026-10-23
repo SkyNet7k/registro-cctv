@@ -184,7 +184,7 @@ function renderCharts(noveltyCounts, storeCounts) {
   });
 }
 
-// --- VISTA PREVIA Y CORTES POR TURNO (MEJORA GRÁFICA ESTILIZADA) ---
+// --- VISTA PREVIA Y CORTES POR TURNO (CON DETECCIÓN DE OPERADOR) ---
 async function previsualizarTurno(turno) {
   const fecha = shiftDateInput ? shiftDateInput.value : new Date().toISOString().slice(0, 10);
   try {
@@ -209,6 +209,7 @@ function openShiftModal(turno, fecha, data) {
   const title = document.getElementById('shiftModalTitle');
   const totalEl = document.getElementById('shiftModalTotal');
   const topStoreEl = document.getElementById('shiftModalTopStore');
+  const topOperatorEl = document.getElementById('shiftModalOperator'); // Elemento para operador
 
   const turnoNombres = {
     'dia': 'Día / Tarde (08:30 - 18:00)',
@@ -219,13 +220,23 @@ function openShiftModal(turno, fecha, data) {
   title.innerHTML = `<i class="fa-solid fa-chart-pie text-purple-400 mr-2"></i> Corte Turno ${turnoNombres[turno] || turno.toUpperCase()} - ${fecha}`;
   totalEl.textContent = data.totalCasos;
 
+  // Agrupar Tiendas u Operadores
   const storeCounts = {};
+  const operatorCounts = {};
+
   data.casos.forEach(c => { 
     const st = c.store || 'Sin Especificar';
-    storeCounts[st] = (storeCounts[st] || 0) + 1; 
+    storeCounts[st] = (storeCounts[st] || 0) + 1;
+
+    const op = c.operator || 'Sin Asignar';
+    operatorCounts[op] = (operatorCounts[op] || 0) + 1;
   });
+
   const topStore = Object.keys(storeCounts).length ? Object.keys(storeCounts).reduce((a, b) => storeCounts[a] > storeCounts[b] ? a : b) : 'Ninguna';
   topStoreEl.textContent = topStore;
+
+  const topOperator = Object.keys(operatorCounts).length ? Object.keys(operatorCounts).reduce((a, b) => operatorCounts[a] > operatorCounts[b] ? a : b) : 'No especificado';
+  if (topOperatorEl) topOperatorEl.textContent = topOperator;
 
   const novCounts = {};
   data.casos.forEach(c => { 
@@ -256,7 +267,7 @@ function openShiftModal(turno, fecha, data) {
         borderWidth: 1.5,
         borderRadius: 8,
         borderSkipped: false,
-        maxBarThickness: 50 // 👈 Evita que las barras se expandan de más cuando hay pocos casos[cite: 7]
+        maxBarThickness: 50
       }]
     },
     options: {
@@ -271,7 +282,10 @@ function openShiftModal(turno, fecha, data) {
           borderColor: '#334155',
           borderWidth: 1,
           padding: 10,
-          displayColors: false
+          displayColors: false,
+          callbacks: {
+            afterLabel: () => `👤 Operador: ${topOperator}`
+          }
         }
       },
       scales: {
@@ -293,7 +307,7 @@ function openShiftModal(turno, fecha, data) {
   };
 
   document.getElementById('btnSendShiftWhatsApp').onclick = async () => {
-    const mensaje = `📊 *REPORTE DE TURNO CCTV*\n⏰ Turno: ${turno.toUpperCase()}\n📅 Fecha: ${fecha}\n📌 Total Casos: ${data.totalCasos}\n🏢 Tienda Principal: ${topStore}\n\n_Corte generado desde el sistema administrativo_`;
+    const mensaje = `📊 *REPORTE DE TURNO CCTV*\n⏰ Turno: ${turno.toUpperCase()}\n📅 Fecha: ${fecha}\n👤 Operador: ${topOperator}\n📌 Total Casos: ${data.totalCasos}\n🏢 Tienda Principal: ${topStore}\n\n_Corte generado desde el sistema administrativo_`;
     try {
       const r = await fetch('/api/enviar-whatsapp', {
         method: 'POST',
