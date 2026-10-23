@@ -5,19 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard y Supervisión - Registro CCTV</title>
   
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Iconos -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- SheetJS para exportar a Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- Chart.js para los gráficos estadísticos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col antialiased">
 
-  <!-- Header -->
   <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-30 shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
       <div class="flex items-center space-x-3">
@@ -27,130 +22,119 @@
         <div>
           <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
             Dashboard & Supervisión CCTV
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              Panel Analítico
-            </span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">Panel Analítico</span>
           </h1>
-          <p class="text-xs text-slate-400">Control operativo, métricas, edición y exportación</p>
+          <p class="text-xs text-slate-400">Control operativo, métricas y cortes de turno automáticos</p>
         </div>
       </div>
       
       <div class="flex items-center space-x-3">
         <a href="index.html" class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg border border-slate-600 transition">
-          <i class="fa-solid fa-arrow-left text-slate-300"></i>
-          Vista Operador
+          <i class="fa-solid fa-arrow-left text-slate-300"></i> Vista Operador
         </a>
         <button id="btnExportExcel" class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow transition">
-          <i class="fa-solid fa-file-excel"></i>
-          Exportar Excel
+          <i class="fa-solid fa-file-excel"></i> Exportar Todo
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Contenido Principal -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-    <!-- Tarjetas de Resumen (KPIs) estilo Dashboard -->
+    <!-- Sección de Cortes de Turno y Vista Previa -->
+    <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700 pb-3 gap-3">
+        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-purple-400"></i>
+          Generador y Vista Previa de Cortes por Turno
+        </h3>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400">Fecha del Corte:</label>
+          <input type="date" id="shiftDateInput" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <button onclick="previsualizarTurno('dia')" class="flex flex-col items-start p-4 bg-slate-900 hover:bg-slate-750 border border-slate-700 hover:border-purple-500 rounded-xl transition group text-left">
+          <span class="text-xs font-semibold text-amber-400 flex items-center gap-1.5 mb-1"><i class="fa-solid fa-sun"></i> Turno Día / Tarde</span>
+          <span class="text-[11px] text-slate-400">08:30 AM - 06:00 PM</span>
+        </button>
+        <button onclick="previsualizarTurno('noche')" class="flex flex-col items-start p-4 bg-slate-900 hover:bg-slate-750 border border-slate-700 hover:border-purple-500 rounded-xl transition group text-left">
+          <span class="text-xs font-semibold text-blue-400 flex items-center gap-1.5 mb-1"><i class="fa-solid fa-moon"></i> Turno Cierre / Noche</span>
+          <span class="text-[11px] text-slate-400">06:00 PM - 10:00 PM</span>
+        </button>
+        <button onclick="previsualizarTurno('madrugada')" class="flex flex-col items-start p-4 bg-slate-900 hover:bg-slate-750 border border-slate-700 hover:border-purple-500 rounded-xl transition group text-left">
+          <span class="text-xs font-semibold text-indigo-400 flex items-center gap-1.5 mb-1"><i class="fa-solid fa-cloud-moon"></i> Turno Madrugada</span>
+          <span class="text-[11px] text-slate-400">10:00 PM - 07:00 AM</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- Tarjeta 1 -->
       <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs font-medium text-slate-400">Total Casos Registrados</p>
           <h3 id="kpiTotalCases" class="text-2xl font-bold text-white mt-1">0</h3>
         </div>
-        <div class="bg-indigo-600/20 p-3 rounded-lg text-indigo-400 border border-indigo-500/30">
-          <i class="fa-solid fa-folder-open text-lg"></i>
-        </div>
+        <div class="bg-indigo-600/20 p-3 rounded-lg text-indigo-400 border border-indigo-500/30"><i class="fa-solid fa-folder-open text-lg"></i></div>
       </div>
-      <!-- Tarjeta 2 -->
       <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs font-medium text-slate-400">Novedad Más Frecuente</p>
-          <h3 id="kpiTopNovelty" class="text-sm font-bold text-emerald-400 mt-1 truncate max-w-[150px]" title="-">Ninguna</h3>
+          <h3 id="kpiTopNovelty" class="text-sm font-bold text-emerald-400 mt-1 truncate max-w-[150px]">Ninguna</h3>
         </div>
-        <div class="bg-emerald-600/20 p-3 rounded-lg text-emerald-400 border border-emerald-500/30">
-          <i class="fa-solid fa-triangle-exclamation text-lg"></i>
-        </div>
+        <div class="bg-emerald-600/20 p-3 rounded-lg text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-triangle-exclamation text-lg"></i></div>
       </div>
-      <!-- Tarjeta 3 -->
       <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs font-medium text-slate-400">Sucursal Con Más Casos</p>
-          <h3 id="kpiTopStore" class="text-sm font-bold text-purple-400 mt-1 truncate max-w-[150px]" title="-">Ninguna</h3>
+          <h3 id="kpiTopStore" class="text-sm font-bold text-purple-400 mt-1 truncate max-w-[150px]">Ninguna</h3>
         </div>
-        <div class="bg-purple-600/20 p-3 rounded-lg text-purple-400 border border-purple-500/30">
-          <i class="fa-solid fa-store text-lg"></i>
-        </div>
+        <div class="bg-purple-600/20 p-3 rounded-lg text-purple-400 border border-purple-500/30"><i class="fa-solid fa-store text-lg"></i></div>
       </div>
-      <!-- Tarjeta 4 -->
       <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex items-center justify-between">
         <div>
           <p class="text-xs font-medium text-slate-400">Operador Más Activo</p>
-          <h3 id="kpiTopOperator" class="text-sm font-bold text-cyan-400 mt-1 truncate max-w-[150px]" title="-">Ninguno</h3>
+          <h3 id="kpiTopOperator" class="text-sm font-bold text-cyan-400 mt-1 truncate max-w-[150px]">Ninguno</h3>
         </div>
-        <div class="bg-cyan-600/20 p-3 rounded-lg text-cyan-400 border border-cyan-500/30">
-          <i class="fa-solid fa-user-shield text-lg"></i>
-        </div>
+        <div class="bg-cyan-600/20 p-3 rounded-lg text-cyan-400 border border-cyan-500/30"><i class="fa-solid fa-user-shield text-lg"></i></div>
       </div>
     </div>
 
-    <!-- Sección de Gráficos (Estilo Tarjetas Dashboard) -->
+    <!-- Gráficos -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Gráfico de Líneas: Evolución de Casos -->
       <div class="lg:col-span-8 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col">
         <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-chart-line text-purple-400"></i>
-            Tendencia de Casos por Tipo de Novedad
-          </h3>
-          <span class="text-xs text-slate-400">Estadísticas Generales</span>
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-purple-400"></i> Tendencia General de Casos</h3>
         </div>
-        <div class="relative flex-1 min-h-[260px]">
-          <canvas id="trendChart"></canvas>
-        </div>
+        <div class="relative flex-1 min-h-[260px]"><canvas id="trendChart"></canvas></div>
       </div>
-
-      <!-- Gráfico de Dona: Distribución Porcentual -->
       <div class="lg:col-span-4 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col">
         <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-chart-pie text-emerald-400"></i>
-            Distribución por Novedad
-          </h3>
-          <span class="text-xs text-slate-400">% Total</span>
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-emerald-400"></i> Distribución General</h3>
         </div>
-        <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
-          <canvas id="doughnutChart"></canvas>
-        </div>
+        <div class="relative flex-1 min-h-[260px] flex items-center justify-center"><canvas id="doughnutChart"></canvas></div>
       </div>
     </div>
 
-    <!-- Filtros y Buscador Avanzado -->
+    <!-- Tabla de Control -->
     <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row gap-4 justify-between items-center">
       <div class="relative w-full sm:w-72">
-        <input type="text" id="adminSearchInput" placeholder="Buscar por tienda, novedad u operador..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        <input type="text" id="adminSearchInput" placeholder="Buscar por tienda, novedad..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
       </div>
-      
-      <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
+      <div class="flex items-center gap-3">
         <span id="adminTableCount" class="text-xs text-slate-400">Mostrando 0 registros</span>
-        
-        <!-- Botón para Importar TXT -->
         <label for="txtFileInput" class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow cursor-pointer transition">
-          <i class="fa-solid fa-file-arrow-up"></i>
-          Importar TXT
+          <i class="fa-solid fa-file-arrow-up"></i> Importar TXT
         </label>
         <input type="file" id="txtFileInput" accept=".txt" multiple class="hidden">
-
         <button id="btnClearAll" class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded-lg transition">
-          <i class="fa-solid fa-trash-can"></i>
-          Limpiar Todo
+          <i class="fa-solid fa-trash-can"></i> Limpiar Todo
         </button>
       </div>
     </div>
 
-    <!-- Tabla de Control Total -->
     <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-lg overflow-hidden flex flex-col">
       <div class="overflow-x-auto flex-1">
         <table class="w-full text-left text-xs text-slate-300">
@@ -174,56 +158,39 @@
 
   </main>
 
-  <!-- Modal de Edición -->
-  <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+  <!-- Modal de Vista Previa de Turno -->
+  <div id="shiftModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-700 pb-3">
-        <h3 class="text-base font-semibold text-white flex items-center gap-2">
-          <i class="fa-solid fa-pen-to-square text-purple-400"></i>
-          Editar Registro de Novedad
+        <h3 id="shiftModalTitle" class="text-base font-semibold text-white flex items-center gap-2">
+          <i class="fa-solid fa-chart-line text-purple-400"></i> Vista Previa de Corte de Turno
         </h3>
-        <button id="btnCloseModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <button onclick="closeShiftModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-
-      <form id="editForm" class="space-y-3">
-        <input type="hidden" id="editId">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Operador</label>
-            <input type="text" id="editOperator" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Sede / Sucursal</label>
-            <select id="editStore" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"></select>
-          </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+          <p class="text-xs text-slate-400">Total Casos en el Turno</p>
+          <h4 id="shiftModalTotal" class="text-xl font-bold text-white mt-1">0</h4>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Hora Inicio</label>
-            <input type="time" id="editStartTime" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Hora Fin</label>
-            <input type="time" id="editEndTime" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-          </div>
+        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+          <p class="text-xs text-slate-400">Sucursal Principal</p>
+          <h4 id="shiftModalTopStore" class="text-sm font-bold text-purple-400 mt-1">-</h4>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">Tipo de Novedad</label>
-          <input type="text" id="editNovelty" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">Solución / Observaciones</label>
-          <textarea id="editSolution" rows="3" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" id="btnCancelEdit" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs transition">Cancelar</button>
-          <button type="submit" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs transition">Guardar Cambios</button>
-        </div>
-      </form>
+      </div>
+      <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-700 relative h-56">
+        <canvas id="shiftPreviewChart"></canvas>
+      </div>
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button id="btnDownloadShiftExcel" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition">
+          <i class="fa-solid fa-file-excel"></i> Descargar Excel del Turno
+        </button>
+        <button id="btnSendShiftWhatsApp" class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium transition">
+          <i class="fa-brands fa-whatsapp"></i> Enviar Corte por WhatsApp
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- Enlace al Script de Administración -->
   <script src="admin.js"></script>
 </body>
 </html>

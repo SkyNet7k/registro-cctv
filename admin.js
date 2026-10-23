@@ -14,6 +14,7 @@ const STORE_GROUPS = {
 let adminCases = [];
 let trendChartInstance = null;
 let doughnutChartInstance = null;
+let shiftPreviewChartInstance = null;
 
 const adminTableBody = document.getElementById('adminTableBody');
 const adminEmptyState = document.getElementById('adminEmptyState');
@@ -22,6 +23,7 @@ const adminTableCount = document.getElementById('adminTableCount');
 const btnExportExcel = document.getElementById('btnExportExcel');
 const btnClearAll = document.getElementById('btnClearAll');
 const txtFileInput = document.getElementById('txtFileInput');
+const shiftDateInput = document.getElementById('shiftDateInput');
 
 // KPI Elements
 const kpiTotalCases = document.getElementById('kpiTotalCases');
@@ -29,7 +31,7 @@ const kpiTopNovelty = document.getElementById('kpiTopNovelty');
 const kpiTopStore = document.getElementById('kpiTopStore');
 const kpiTopOperator = document.getElementById('kpiTopOperator');
 
-// Modal Elements
+// Modal de Edición Elements
 const editModal = document.getElementById('editModal');
 const editForm = document.getElementById('editForm');
 const editId = document.getElementById('editId');
@@ -43,6 +45,9 @@ const btnCloseModal = document.getElementById('btnCloseModal');
 const btnCancelEdit = document.getElementById('btnCancelEdit');
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (shiftDateInput) {
+    shiftDateInput.value = new Date().toISOString().slice(0, 10);
+  }
   populateEditStoreDropdown();
   loadAdminCases();
 });
@@ -76,7 +81,7 @@ function populateEditStoreDropdown() {
   }
 }
 
-// --- ACTUALIZAR KPIS Y GRÁFICOS ---
+// --- ACTUALIZAR KPIS Y GRÁFICOS GENERALES ---
 function updateDashboard() {
   const total = adminCases.length;
   if (kpiTotalCases) kpiTotalCases.textContent = total;
@@ -89,7 +94,6 @@ function updateDashboard() {
     return;
   }
 
-  // Contar frecuencias
   const noveltyCounts = {};
   const storeCounts = {};
   const operatorCounts = {};
@@ -128,7 +132,6 @@ function renderCharts(noveltyCounts, storeCounts) {
   const noveltyLabels = Object.keys(noveltyCounts);
   const noveltyData = Object.values(noveltyCounts);
 
-  // 1. Gráfico de Líneas / Tendencia por Novedad
   if (trendChartInstance) trendChartInstance.destroy();
   trendChartInstance = new Chart(trendCanvas.getContext('2d'), {
     type: 'line',
@@ -156,7 +159,6 @@ function renderCharts(noveltyCounts, storeCounts) {
     }
   });
 
-  // 2. Gráfico de Dona (Distribución)
   if (doughnutChartInstance) doughnutChartInstance.destroy();
   doughnutChartInstance = new Chart(doughnutCanvas.getContext('2d'), {
     type: 'doughnut',
@@ -182,6 +184,99 @@ function renderCharts(noveltyCounts, storeCounts) {
   });
 }
 
+// --- VISTA PREVIA Y CORTES POR TURNO ---
+async function previsualizarTurno(turno) {
+  const fecha = shiftDateInput ? shiftDateInput.value : new Date().toISOString().slice(0, 10);
+  try {
+    const res = await fetch('/api/reportes/turno', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha, turno })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      openShiftModal(turno, fecha, data);
+    } else {
+      alert('Error al generar la vista previa del turno.');
+    }
+  } catch (err) {
+    console.error('Error al conectar con API de turnos:', err);
+  }
+}
+
+function openShiftModal(turno, fecha, data) {
+  const modal = document.getElementById('shiftModal');
+  const title = document.getElementById('shiftModalTitle');
+  const totalEl = document.getElementById('shiftModalTotal');
+  const topStoreEl = document.getElementById('shiftModalTopStore');
+
+  title.innerHTML = `<i class="fa-solid fa-chart-line text-purple-400"></i> Corte Turno ${turno.toUpperCase()} (${fecha})`;
+  totalEl.textContent = data.totalCasos;
+
+  const storeCounts = {};
+  data.casos.forEach(c => { storeCounts[c.store] = (storeCounts[c.store] || 0) + 1; });
+  const topStore = Object.keys(storeCounts).length ? Object.keys(storeCounts).reduce((a, b) => storeCounts[a] > storeCounts[b] ? a : b) : 'Ninguna';
+  topStoreEl.textContent = topStore;
+
+  const novCounts = {};
+  data.casos.forEach(c => { novCounts[c.novelty] = (novCounts[c.novelty] || 0) + 1; });
+
+  const canvas = document.getElementById('shiftPreviewChart');
+  if (shiftPreviewChartInstance) shiftPreviewChartInstance.destroy();
+  shiftPreviewChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(novCounts).length ? Object.keys(novCounts) : ['Sin incidencias'],
+      datasets: [{
+        label: 'Casos por Novedad',
+        data: Object.values(novCounts).length ? Object.values(novCounts) : [0],
+        backgroundColor: '#a855f7',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, precision: 0 }, grid: { color: '#334155' } }
+      }
+    }
+  });
+
+  document.getElementById('btnDownloadShiftExcel').onclick = () => {
+    window.location.href = data.fileUrl;
+  };
+
+  document.getElementById('btnSendShiftWhatsApp').onclick = async () => {
+    const mensaje = `📊 *REPORTE DE TURNO CCTV* (${turno.toUpperCase()})\n📅 Fecha: ${fecha}\n📌 Total Casos: ${data.totalCasos}\n🏢 Tienda Principal: ${topStore}\n_Generado por Sistema CCTV_`;
+    try {
+      const r = await fetch('/api/enviar-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensaje })
+      });
+      const resp = await r.json();
+      if (resp.success) {
+        alert('¡Reporte de turno enviado por WhatsApp con éxito!');
+      } else {
+        alert('Aviso: Petición recibida pero sin credenciales de WhatsApp activas.');
+      }
+    } catch (e) {
+      alert('Error al enviar por WhatsApp');
+    }
+  };
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeShiftModal() {
+  const modal = document.getElementById('shiftModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// --- RENDERIZAR TABLA PRINCIPAL ---
 function renderAdminTable() {
   if (!adminTableBody) return;
   
@@ -240,7 +335,7 @@ function renderAdminTable() {
 
 if (adminSearchInput) adminSearchInput.addEventListener('input', renderAdminTable);
 
-// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT (INTELIGENTE Y MÚLTIPLE) ---
+// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT ---
 if (txtFileInput) {
   txtFileInput.addEventListener('change', async (e) => {
     const files = e.target.files;
@@ -253,8 +348,7 @@ if (txtFileInput) {
         const textContent = await readFileContent(file);
         if (!textContent || textContent.trim() === "") continue;
 
-        const fileName = file.name.replace(/\.[^/.]+$/, ""); 
-        const parsedCases = parseTxtReport(textContent, fileName);
+        const parsedCases = parseTxtReport(textContent);
 
         for (const caseData of parsedCases) {
           const res = await fetch('/api/casos', {
@@ -287,9 +381,8 @@ function readFileContent(file) {
   });
 }
 
-function parseTxtReport(text, fileName) {
+function parseTxtReport(text) {
   const cases = [];
-
   const rawBlocks = text.split(/(?=\bSede\b|\*Sede|\*Departamento de seguridad|\*Dpto|\bDepartamento de seguridad)/i);
 
   rawBlocks.forEach((block) => {
@@ -311,15 +404,13 @@ function parseTxtReport(text, fileName) {
         const parts = cleanLine.split(':');
         if (parts.length > 1 && parts[1].trim() !== "") {
           detectedStore = parts[1].trim();
-        } else {
-          detectedStore = cleanLine.replace(/sede/gi, '').trim();
         }
       } else if (lower.startsWith('novedad:') || lower.startsWith('notificación:') || lower.startsWith('novedad')) {
         const parts = cleanLine.split(':');
         if (parts.length > 1 && parts[1].trim() !== "") {
           noveltyDetails.push(parts[1].trim());
         }
-      } else if (lower.startsWith('solución:') || lower.startsWith('soluciones:') || lower.startsWith('solución') || lower.startsWith('solucione')) {
+      } else if (lower.startsWith('solución:') || lower.startsWith('soluciones:') || lower.startsWith('solución')) {
         const parts = cleanLine.split(':');
         if (parts.length > 1 && parts[1].trim() !== "") {
           solutionText.push(parts[1].trim());
@@ -329,7 +420,7 @@ function parseTxtReport(text, fileName) {
         if (parts.length > 1 && parts[1].trim() !== "") {
           actionText.push(parts[1].trim());
         }
-      } else if (lower.startsWith('actuante:') || lower.startsWith('actuantes:') || lower.startsWith('actuates:')) {
+      } else if (lower.startsWith('actuante:') || lower.startsWith('actuantes:')) {
         const parts = cleanLine.split(':');
         if (parts.length > 1 && parts[1].trim() !== "") {
           actorsText.push(parts[1].trim());
@@ -352,9 +443,9 @@ function parseTxtReport(text, fileName) {
       category = "Accidente Laboral";
     } else if (textCheck.includes('hurto') || textCheck.includes('tentativa') || textCheck.includes('roba') || textCheck.includes('inmoviliz')) {
       category = "Hurto / Tentativa";
-    } else if (textCheck.includes('sospechos') || textCheck.includes('tercera edad')) {
+    } else if (textCheck.includes('sospechos')) {
       category = "Actitud Sospechosa";
-    } else if (textCheck.includes('bolso') || textCheck.includes('olvidada') || textCheck.includes('bolsa')) {
+    } else if (textCheck.includes('bolso') || textCheck.includes('olvidada')) {
       category = "Incidencia de Personal";
     }
 
@@ -367,8 +458,6 @@ function parseTxtReport(text, fileName) {
       novelty: category,
       details: fullDetails,
       solution: `Solución: ${fullSolution} | Acciones: ${fullActions} | Actuantes: ${fullActors}`,
-      actions: fullActions,
-      actors: fullActors,
       createdAt: new Date().toISOString()
     });
   });
@@ -376,8 +465,7 @@ function parseTxtReport(text, fileName) {
   return cases;
 }
 
-// --- ACCIONES CRUD Y MODAL ---
-
+// --- MODAL DE EDICIÓN CRUD ---
 window.openEditModal = function(id) {
   const c = adminCases.find(item => item.id === id);
   if (!c) return;
@@ -393,12 +481,12 @@ window.openEditModal = function(id) {
   if (editModal) editModal.classList.remove('hidden');
 };
 
-function closeModal() {
+function closeEditModal() {
   if (editModal) editModal.classList.add('hidden');
 }
 
-if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
-if (btnCancelEdit) btnCancelEdit.addEventListener('click', closeModal);
+if (btnCloseModal) btnCloseModal.addEventListener('click', closeEditModal);
+if (btnCancelEdit) btnCancelEdit.addEventListener('click', closeEditModal);
 
 if (editForm) {
   editForm.addEventListener('submit', async (e) => {
@@ -422,7 +510,7 @@ if (editForm) {
       });
 
       if (res.ok) {
-        closeModal();
+        closeEditModal();
         loadAdminCases();
       } else {
         alert('Error al actualizar el caso.');
@@ -463,7 +551,7 @@ if (btnClearAll) {
   });
 }
 
-// --- EXPORTAR A EXCEL EJECUTIVO (MULTIHOTAS CON ESTADÍSTICAS) ---
+// --- EXPORTAR A EXCEL GLOBAL ---
 if (btnExportExcel) {
   btnExportExcel.addEventListener('click', () => {
     if (adminCases.length === 0) {
@@ -471,11 +559,10 @@ if (btnExportExcel) {
       return;
     }
 
-    // 1. Datos detallados para la primera hoja
     const dataFormatted = adminCases.map((c, index) => ({
       "N°": index + 1,
       "Tienda / Sucursal": c.store || 'N/A',
-      "Operador CCTV": c.operator || 'Operador Importado',
+      "Operador CCTV": c.operator || 'Operador',
       "Hora Inicio": c.startTime || '08:00',
       "Hora Fin": c.endTime || '16:00',
       "Tipo de Novedad": c.novelty || 'General',
@@ -483,48 +570,9 @@ if (btnExportExcel) {
       "Fecha Registro": c.createdAt ? new Date(c.createdAt).toLocaleString() : ''
     }));
 
-    // 2. Procesamiento de estadísticas para las hojas de resumen
-    const noveltyCounts = {};
-    const storeCounts = {};
-    const operatorCounts = {};
-
-    adminCases.forEach(c => {
-      const nov = c.novelty || 'General';
-      const sto = c.store || 'Sucursal General';
-      const op = c.operator || 'Operador S/N';
-
-      noveltyCounts[nov] = (noveltyCounts[nov] || 0) + 1;
-      storeCounts[sto] = (storeCounts[sto] || 0) + 1;
-      operatorCounts[op] = (operatorCounts[op] || 0) + 1;
-    });
-
-    const noveltySummary = Object.keys(noveltyCounts).map(k => ({ "Tipo de Novedad": k, "Total Casos": noveltyCounts[k] }));
-    const storeSummary = Object.keys(storeCounts).map(k => ({ "Sucursal / Tienda": k, "Total Casos": storeCounts[k] }));
-    const operatorSummary = Object.keys(operatorCounts).map(k => ({ "Operador CCTV": k, "Casos Atendidos": operatorCounts[k] }));
-
-    // 3. Creación del libro y adición de las hojas con anchos profesionales
     const workbook = XLSX.utils.book_new();
-
     const wsDetails = XLSX.utils.json_to_sheet(dataFormatted);
-    wsDetails['!cols'] = [
-      { wch: 6 },  { wch: 18 }, { wch: 20 }, { wch: 12 }, 
-      { wch: 12 }, { wch: 28 }, { wch: 45 }, { wch: 20 }
-    ];
     XLSX.utils.book_append_sheet(workbook, wsDetails, "Novedades CCTV");
-
-    const wsStatsNovelty = XLSX.utils.json_to_sheet(noveltySummary);
-    wsStatsNovelty['!cols'] = [{ wch: 32 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(workbook, wsStatsNovelty, "Estadísticas Novedades");
-
-    const wsStatsStore = XLSX.utils.json_to_sheet(storeSummary);
-    wsStatsStore['!cols'] = [{ wch: 25 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(workbook, wsStatsStore, "Estadísticas Sucursales");
-
-    const wsStatsOperator = XLSX.utils.json_to_sheet(operatorSummary);
-    wsStatsOperator['!cols'] = [{ wch: 25 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(workbook, wsStatsOperator, "Rendimiento Operadores");
-
-    // 4. Descarga del reporte corporativo moderno
     XLSX.writeFile(workbook, `Reporte_Ejecutivo_CCTV_${new Date().toISOString().slice(0,10)}.xlsx`);
   });
 }

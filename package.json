@@ -12,8 +12,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "mongoose": "^9.11.2",
+    "node-cron": "^4.6.0",
     "pg": "^8.23.1"
   }
 }
