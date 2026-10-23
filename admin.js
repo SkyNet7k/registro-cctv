@@ -184,7 +184,7 @@ function renderCharts(noveltyCounts, storeCounts) {
   });
 }
 
-// --- VISTA PREVIA Y CORTES POR TURNO ---
+// --- VISTA PREVIA Y CORTES POR TURNO (MEJORA GRÁFICA ESTILIZADA) ---
 async function previsualizarTurno(turno) {
   const fecha = shiftDateInput ? shiftDateInput.value : new Date().toISOString().slice(0, 10);
   try {
@@ -210,37 +210,80 @@ function openShiftModal(turno, fecha, data) {
   const totalEl = document.getElementById('shiftModalTotal');
   const topStoreEl = document.getElementById('shiftModalTopStore');
 
-  title.innerHTML = `<i class="fa-solid fa-chart-line text-purple-400"></i> Corte Turno ${turno.toUpperCase()} (${fecha})`;
+  const turnoNombres = {
+    'dia': 'Día / Tarde (08:30 - 18:00)',
+    'noche': 'Cierre / Noche (18:00 - 22:00)',
+    'madrugada': 'Madrugada (22:00 - 07:00)'
+  };
+
+  title.innerHTML = `<i class="fa-solid fa-chart-pie text-purple-400 mr-2"></i> Corte Turno ${turnoNombres[turno] || turno.toUpperCase()} - ${fecha}`;
   totalEl.textContent = data.totalCasos;
 
   const storeCounts = {};
-  data.casos.forEach(c => { storeCounts[c.store] = (storeCounts[c.store] || 0) + 1; });
+  data.casos.forEach(c => { 
+    const st = c.store || 'Sin Especificar';
+    storeCounts[st] = (storeCounts[st] || 0) + 1; 
+  });
   const topStore = Object.keys(storeCounts).length ? Object.keys(storeCounts).reduce((a, b) => storeCounts[a] > storeCounts[b] ? a : b) : 'Ninguna';
   topStoreEl.textContent = topStore;
 
   const novCounts = {};
-  data.casos.forEach(c => { novCounts[c.novelty] = (novCounts[c.novelty] || 0) + 1; });
+  data.casos.forEach(c => { 
+    const nov = c.novelty || 'Otro / General';
+    novCounts[nov] = (novCounts[nov] || 0) + 1; 
+  });
 
   const canvas = document.getElementById('shiftPreviewChart');
   if (shiftPreviewChartInstance) shiftPreviewChartInstance.destroy();
-  shiftPreviewChartInstance = new Chart(canvas.getContext('2d'), {
+
+  const labels = Object.keys(novCounts).length ? Object.keys(novCounts) : ['Sin incidencias'];
+  const chartData = Object.values(novCounts).length ? Object.values(novCounts) : [0];
+
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, '#a855f7');
+  gradient.addColorStop(1, 'rgba(168, 85, 247, 0.2)');
+
+  shiftPreviewChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: Object.keys(novCounts).length ? Object.keys(novCounts) : ['Sin incidencias'],
+      labels: labels,
       datasets: [{
-        label: 'Casos por Novedad',
-        data: Object.values(novCounts).length ? Object.values(novCounts) : [0],
-        backgroundColor: '#a855f7',
-        borderRadius: 6
+        label: 'Casos Registrados',
+        data: chartData,
+        backgroundColor: gradient,
+        borderColor: '#c084fc',
+        borderWidth: 1.5,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 50 // 👈 Evita que las barras se expandan de más cuando hay pocos casos[cite: 7]
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          titleColor: '#e2e8f0',
+          bodyColor: '#c084fc',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: false
+        }
+      },
       scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
-        y: { ticks: { color: '#94a3b8', font: { size: 10 }, precision: 0 }, grid: { color: '#334155' } }
+        x: { 
+          ticks: { color: '#94a3b8', font: { size: 11, weight: '500' } }, 
+          grid: { display: false } 
+        },
+        y: { 
+          beginAtZero: true,
+          ticks: { color: '#94a3b8', font: { size: 10 }, precision: 0, stepSize: 1 }, 
+          grid: { color: '#334155', strokeDash: [4, 4] } 
+        }
       }
     }
   });
@@ -250,7 +293,7 @@ function openShiftModal(turno, fecha, data) {
   };
 
   document.getElementById('btnSendShiftWhatsApp').onclick = async () => {
-    const mensaje = `📊 *REPORTE DE TURNO CCTV* (${turno.toUpperCase()})\n📅 Fecha: ${fecha}\n📌 Total Casos: ${data.totalCasos}\n🏢 Tienda Principal: ${topStore}\n_Generado por Sistema CCTV_`;
+    const mensaje = `📊 *REPORTE DE TURNO CCTV*\n⏰ Turno: ${turno.toUpperCase()}\n📅 Fecha: ${fecha}\n📌 Total Casos: ${data.totalCasos}\n🏢 Tienda Principal: ${topStore}\n\n_Corte generado desde el sistema administrativo_`;
     try {
       const r = await fetch('/api/enviar-whatsapp', {
         method: 'POST',
