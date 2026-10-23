@@ -45,34 +45,71 @@ if (!fs.existsSync(reportesDir)) {
   fs.mkdirSync(reportesDir);
 }
 
-// Helper para filtrar casos por turno y fecha exacta
+// --- CLASIFICACIÓN Y PARSEO INTELIGENTE DE HISTÓRICOS ---
+
+// Helper para convertir cualquier formato de hora (hh:mm, 12h o 24h) a minutos transcurridos en el día
+function parseHoraAMinutos(horaStr, defaultDate) {
+  if (!horaStr) {
+    if (!defaultDate) return 0;
+    const d = new Date(defaultDate);
+    return d.getHours() * 60 + d.getMinutes();
+  }
+
+  if (typeof horaStr === 'string' && horaStr.includes(':')) {
+    const parts = horaStr.trim().split(':');
+    let h = parseInt(parts[0], 10) || 0;
+    let m = parseInt(parts[1], 10) || 0;
+
+    const isPM = horaStr.toLowerCase().includes('pm');
+    const isAM = horaStr.toLowerCase().includes('am');
+    if (isPM && h < 12) h += 12;
+    if (isAM && h === 12) h = 0;
+
+    return h * 60 + m;
+  }
+
+  return 0;
+}
+
+// Helper inteligente para agrupar registros existentes en la DB por Turno, Fecha y Operador
 function filtrarCasosPorTurno(casos, fechaStr, turno) {
-  const targetDate = new Date(fechaStr);
+  const targetDateStr = fechaStr; // Formato YYYY-MM-DD
   
+  // Calcular la fecha del día siguiente (para evaluar turno madrugada que cruza medianoche)
+  const [year, month, day] = fechaStr.split('-').map(Number);
+  const targetDate = new Date(Date.UTC(year, month - 1, day));
+  const nextDateObj = new Date(targetDate);
+  nextDateObj.setDate(nextDateObj.getDate() + 1);
+  const nextDateStr = nextDateObj.toISOString().slice(0, 10);
+
   return casos.filter(c => {
-    if (!c.createdAt) return false;
-    const cDate = new Date(c.createdAt);
-    const hours = cDate.getHours();
-    const minutes = cDate.getMinutes();
-    const timeVal = hours + minutes / 60;
-    const cDateString = cDate.toISOString().slice(0, 10);
-    
+    // 1. Determinar la fecha base del caso (createdAt o created_at)
+    const fechaCreacionRaw = c.createdAt || c.created_at;
+    if (!fechaCreacionRaw) return false;
+
+    const caseDateObj = new Date(fechaCreacionRaw);
+    const caseDateStr = caseDateObj.toISOString().slice(0, 10);
+
+    // 2. Extraer los minutos desde startTime o desde la fecha de creación ISO
+    const minutosInicio = parseHoraAMinutos(c.startTime, fechaCreacionRaw);
+
+    // Minutos límites de turnos:
+    // Turno Día: 08:30 AM (510 min) a 06:00 PM (1080 min)
+    // Turno Noche: 06:00 PM (1080 min) a 10:00 PM (1320 min)
+    // Turno Madrugada: 10:00 PM (1320 min) a 07:00 AM del día siguiente (420 min)
+
     if (turno === 'dia') {
-      // Turno Día/Tarde: 08:30 AM a 06:00 PM (08:30 - 18:00)
-      return cDateString === fechaStr && timeVal >= 8.5 && timeVal < 18.0;
-    } else if (turno === 'noche') {
-      // Turno Cierre/Noche: 06:00 PM a 10:00 PM (18:00 - 22:00)
-      return cDateString === fechaStr && timeVal >= 18.0 && timeVal < 22.0;
-    } else if (turno === 'madrugada') {
-      // Turno Nocturno/Madrugada: 10:00 PM a 07:00 AM del día siguiente (22:00 - 07:00)
-      const nextDate = new Date(targetDate);
-      nextDate.setDate(nextDate.getDate() + 1);
-      const nextDateStr = nextDate.toISOString().slice(0, 10);
-      
-      if (cDateString === fechaStr && timeVal >= 22.0) return true;
-      if (cDateString === nextDateStr && timeVal < 7.0) return true;
-      return false;
+      return (caseDateStr === targetDateStr) && (minutosInicio >= 510 && minutosInicio < 1080);
+    } 
+    else if (turno === 'noche') {
+      return (caseDateStr === targetDateStr) && (minutosInicio >= 1080 && minutosInicio < 1320);
+    } 
+    else if (turno === 'madrugada') {
+      const esNocheMismaFecha = (caseDateStr === targetDateStr) && (minutosInicio >= 1320);
+      const esMadrugadaDiaSiguiente = (caseDateStr === nextDateStr) && (minutosInicio < 420);
+      return esNocheMismaFecha || esMadrugadaDiaSiguiente;
     }
+
     return false;
   });
 }
@@ -83,7 +120,7 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
   workbook.creator = 'Sistema CCTV';
   workbook.created = new Date();
 
-  // Pestaña 1: Resumen y Dashboard
+  // Pestaña 1: Resumen de Turno
   const wsDashboard = workbook.addWorksheet('Resumen de Turno');
   wsDashboard.views = [{ showGridLines: true }];
 
@@ -105,13 +142,13 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
 
   wsDetalle.columns = [
     { header: 'N°', key: 'index', width: 6 },
-    { header: 'Tienda / Sucursal', key: 'store', width: 20 },
-    { header: 'Operador', key: 'operator', width: 18 },
+    { header: 'Tienda / Sucursal', key: 'store', width: 22 },
+    { header: 'Operador CCTV', key: 'operator', width: 20 },
     { header: 'Hora Inicio', key: 'startTime', width: 12 },
     { header: 'Hora Fin', key: 'endTime', width: 12 },
     { header: 'Tipo de Novedad', key: 'novelty', width: 25 },
-    { header: 'Solución / Observaciones', key: 'solution', width: 45 },
-    { header: 'Fecha Registro', key: 'createdAt', width: 20 }
+    { header: 'Solución / Observaciones', key: 'solution', width: 50 },
+    { header: 'Fecha Registro', key: 'createdAt', width: 22 }
   ];
 
   const headerRow = wsDetalle.getRow(1);
@@ -129,7 +166,7 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
       endTime: c.endTime || '16:00',
       novelty: c.novelty || 'General',
       solution: c.solution || '-',
-      createdAt: c.createdAt ? new Date(c.createdAt).toLocaleString() : ''
+      createdAt: (c.createdAt || c.created_at) ? new Date(c.createdAt || c.created_at).toLocaleString() : ''
     });
 
     if (idx % 2 === 1) {
@@ -143,8 +180,9 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
   return filePath;
 }
 
-// --- RUTAS DE API ---
+// --- RUTAS DE API (REST API CON POSTGRESQL) ---
 
+// 1. Obtener todos los casos
 app.get('/api/casos', async (req, res) => {
   try {
     const result = await pool.query('SELECT data, created_at FROM casos ORDER BY created_at DESC');
@@ -162,6 +200,7 @@ app.get('/api/casos', async (req, res) => {
   }
 });
 
+// 2. Registrar o actualizar un caso
 app.post('/api/casos', async (req, res) => {
   const newCase = req.body;
   if (!newCase || !newCase.store || !newCase.novelty) {
@@ -184,6 +223,7 @@ app.post('/api/casos', async (req, res) => {
   }
 });
 
+// 3. Actualizar caso por ID
 app.put('/api/casos/:id', async (req, res) => {
   const { id } = req.params;
   const updatedCase = req.body;
@@ -197,6 +237,7 @@ app.put('/api/casos/:id', async (req, res) => {
   }
 });
 
+// 4. Eliminar caso por ID
 app.delete('/api/casos/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -207,16 +248,17 @@ app.delete('/api/casos/:id', async (req, res) => {
   }
 });
 
+// 5. Limpiar base de datos
 app.delete('/api/casos', async (req, res) => {
   try {
     await pool.query('DELETE FROM casos');
-    res.json({ status: 'ok', message: 'Todos los casos eliminados' });
+    res.json({ status: 'ok', message: 'Todos los casos fueron eliminados' });
   } catch (err) {
     res.status(500).json({ error: 'Error al limpiar la base de datos' });
   }
 });
 
-// Endpoint para generar y consultar reporte de turno
+// 6. Endpoint para generar y consultar reporte de turno agrupado
 app.post('/api/reportes/turno', async (req, res) => {
   const { fecha, turno } = req.body;
   if (!fecha || !turno) {
@@ -225,9 +267,13 @@ app.post('/api/reportes/turno', async (req, res) => {
 
   try {
     const result = await pool.query('SELECT data, created_at FROM casos');
-    const allCases = result.rows.map(row => row.data || {});
-    const casosTurno = filtrarCasosPorTurno(allCases, fecha, turno);
+    const allCases = result.rows.map(row => {
+      let c = row.data || {};
+      if (!c.createdAt) c.createdAt = row.created_at;
+      return c;
+    });
 
+    const casosTurno = filtrarCasosPorTurno(allCases, fecha, turno);
     await generarExcelTurno(casosTurno, turno, fecha);
 
     res.json({
@@ -245,7 +291,7 @@ app.post('/api/reportes/turno', async (req, res) => {
 // Servir archivos estáticos de reportes generados
 app.use('/reportes', express.static(reportesDir));
 
-// Endpoint WhatsApp
+// Endpoint WhatsApp (Destino predeterminado: +58 412-6615457)
 app.post('/api/enviar-whatsapp', async (req, res) => {
   const { mensaje, numero } = req.body;
   const destino = numero || "584126615457";
@@ -255,8 +301,8 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
     const API_TOKEN = process.env.WA_API_TOKEN;
 
     if (!INSTANCE_ID || !API_TOKEN) {
-      console.log("WhatsApp simulado (sin credenciales WA):", mensaje);
-      return res.json({ success: true, message: "Mensaje procesado correctamente." });
+      console.log(`[WA SIMULADO a ${destino}]:`, mensaje);
+      return res.json({ success: true, message: "Mensaje procesado correctamente (Modo simulación)." });
     }
 
     const response = await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
@@ -273,26 +319,65 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
   }
 });
 
-// Tareas Programadas Automáticas (Cron Jobs)
+// --- TAREAS PROGRAMADAS AUTOMÁTICAS (CRON JOBS DE ENVIOS DE CORTE) ---
+
+// Helper para compilar y transmitir automáticamente el corte por WhatsApp
+async function ejecutarCorteYNotificar(turnoNombre) {
+  try {
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    const result = await pool.query('SELECT data, created_at FROM casos');
+    const allCases = result.rows.map(r => r.data || {});
+    const casosTurno = filtrarCasosPorTurno(allCases, hoyStr, turnoNombre);
+
+    // Generar archivo Excel
+    await generarExcelTurno(casosTurno, turnoNombre, hoyStr);
+
+    // Formatear mensaje
+    const mensaje = `📊 *CIERRE AUTOMÁTICO DE TURNO CCTV* (${turnoNombre.toUpperCase()})\n📅 Fecha: ${hoyStr}\n📌 Total Casos Registrados: ${casosTurno.length}\n_Corte procesado automáticamente por el servidor._`;
+
+    // Enviar a WhatsApp
+    const INSTANCE_ID = process.env.WA_INSTANCE_ID; 
+    const API_TOKEN = process.env.WA_API_TOKEN;
+    if (INSTANCE_ID && API_TOKEN) {
+      await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: "584126615457@c.us", message: mensaje })
+      });
+    }
+    console.log(`✅ Corte automático Turno ${turnoNombre} completado.`);
+  } catch (err) {
+    console.error(`Error en cron job de Turno ${turnoNombre}:`, err);
+  }
+}
+
 // 1. Cierre Turno Día: 6:00 PM (18:00)
-cron.schedule('0 18 * * *', async () => {
-  console.log('⏰ Cron Job: Generando reporte automático Turno Día...');
-});
-// 2. Cierre Turno Noche: 10:00 PM (22:00)
-cron.schedule('0 22 * * *', async () => {
-  console.log('⏰ Cron Job: Generando reporte automático Turno Noche...');
-});
-// 3. Cierre Turno Madrugada: 7:00 AM (07:00)
-cron.schedule('0 7 * * *', async () => {
-  console.log('⏰ Cron Job: Generando reporte automático Turno Madrugada...');
+cron.schedule('0 18 * * *', () => {
+  console.log('⏰ Ejecutando cron job: Turno Día (18:00)');
+  ejecutarCorteYNotificar('dia');
 });
 
+// 2. Cierre Turno Noche: 10:00 PM (22:00)
+cron.schedule('0 22 * * *', () => {
+  console.log('⏰ Ejecutando cron job: Turno Noche (22:00)');
+  ejecutarCorteYNotificar('noche');
+});
+
+// 3. Cierre Turno Madrugada: 7:00 AM (07:00)
+cron.schedule('0 7 * * *', () => {
+  console.log('⏰ Ejecutando cron job: Turno Madrugada (07:00)');
+  ejecutarCorteYNotificar('madrugada');
+});
+
+// Servir frontend
 app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`===================================================`);
-  console.log(`🚀 Servidor CCTV iniciado en puerto ${PORT}`);
+  console.log(`🚀 Servidor CCTV iniciado con PostgreSQL`);
+  console.log(`📍 Acceso Local: http://localhost:${PORT}`);
   console.log(`===================================================`);
 });
