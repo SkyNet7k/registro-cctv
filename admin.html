@@ -69,7 +69,7 @@
       </div>
     </div>
 
-    <!-- NUEVA SECCIÓN: Consulta Operativa por Tienda, Fecha, Turno y Novedad -->
+    <!-- SECCIÓN: Consulta Operativa por Tienda, Fecha, Turno y Novedad -->
     <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg space-y-4">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700 pb-3 gap-3">
         <h3 class="text-sm font-semibold text-white flex items-center gap-2">
@@ -80,22 +80,18 @@
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        <!-- Selector de Fecha -->
         <div>
           <label class="block text-[11px] text-slate-400 mb-1">Fecha de Consulta:</label>
           <input type="date" id="queryDateInput" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
         </div>
 
-        <!-- Selector de Tienda -->
         <div>
           <label class="block text-[11px] text-slate-400 mb-1">Tienda / Sucursal:</label>
           <select id="queryStoreSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
             <option value="ALL">Todas las Sedes</option>
-            <!-- Se llena dinámicamente desde admin.js -->
           </select>
         </div>
 
-        <!-- Selector de Turno -->
         <div>
           <label class="block text-[11px] text-slate-400 mb-1">Turno Operativo:</label>
           <select id="queryShiftSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -106,7 +102,6 @@
           </select>
         </div>
 
-        <!-- Selector de Tipo de Novedad -->
         <div>
           <label class="block text-[11px] text-slate-400 mb-1">Tipo de Novedad:</label>
           <select id="queryNoveltySelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -120,7 +115,6 @@
           </select>
         </div>
 
-        <!-- Botón de Ejecutar Consulta -->
         <div class="flex items-end">
           <button onclick="ejecutarConsultaAvanzada()" class="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium shadow transition h-[34px]">
             <i class="fa-solid fa-magnifying-glass"></i> Consultar
@@ -128,7 +122,6 @@
         </div>
       </div>
 
-      <!-- Resultados de la Consulta Avanzada -->
       <div id="queryResultsContainer" class="hidden space-y-3 pt-3 border-t border-slate-700">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
@@ -279,6 +272,55 @@
         </button>
         <button id="btnSendShiftWhatsApp" class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium transition">
           <i class="fa-brands fa-whatsapp"></i> Enviar Corte por WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Vista Previa y Confirmación de Importación TXT (WhatsApp) -->
+  <div id="importTxtModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-4xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="text-base font-semibold text-white flex items-center gap-2">
+          <i class="fa-brands fa-whatsapp text-emerald-400 text-lg"></i> Vista Previa y Filtrado de Importación TXT
+        </h3>
+        <button onclick="closeImportTxtModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <label class="text-xs text-slate-300 font-medium whitespace-nowrap">Asignar Sede a Todos:</label>
+          <select id="bulkStoreSelect" onchange="aplicarSedeMasiva(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 w-full sm:w-60">
+            <option value="">-- Seleccionar para aplicar a todos --</option>
+          </select>
+        </div>
+        <span id="importTxtCount" class="text-xs font-semibold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-full">
+          0 registros detectados
+        </span>
+      </div>
+
+      <div class="overflow-y-auto flex-1 border border-slate-700 rounded-lg">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 sticky top-0 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700 z-10">
+            <tr>
+              <th class="px-3 py-2 w-10 text-center">N°</th>
+              <th class="px-3 py-2 w-48">Sede / Tienda</th>
+              <th class="px-3 py-2 w-36">Tipo Novedad</th>
+              <th class="px-3 py-2">Detalle / Novedad Extraída</th>
+            </tr>
+          </thead>
+          <tbody id="importTxtTableBody" class="divide-y divide-slate-700/50"></tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-700">
+        <button onclick="closeImportTxtModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium transition">
+          Cancelar
+        </button>
+        <button id="btnConfirmImportTxt" onclick="confirmarImportacionMasiva()" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition shadow-lg">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Confirmar e Importar a DB
         </button>
       </div>
     </div>
