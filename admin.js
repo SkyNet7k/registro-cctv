@@ -404,10 +404,23 @@ function parseTxtReportWhatsApp(text) {
     const fullText = lines.join(' ');
     const lowerText = fullText.toLowerCase();
 
+    // FILTRO INTELIGENTE PARA DESCARTAR RUIDO, SALUDOS, LLEGADAS DE GERENTES Y TURNOS
     if (lowerText.includes('mensajes y las llamadas están cifrados') || 
         lowerText.includes('imagen omitida') || 
         lowerText.includes('sticker omitido') || 
-        lowerText.includes('mensaje de voz omitido')) {
+        lowerText.includes('mensaje de voz omitido') ||
+        lowerText.includes('gerente') ||
+        lowerText.includes('turno b') ||
+        lowerText.includes('turno a') ||
+        lowerText.includes('llegada del gerente') ||
+        lowerText.includes('ya llegó') ||
+        lowerText.includes('aun no lo he visto') ||
+        lowerText.includes('aún no lo he visto') ||
+        lowerText.includes('me indicas cuando llegue') ||
+        lowerText.includes('sin novedad') ||
+        lowerText.includes('ya se fue') ||
+        lowerText.includes('agradecida') ||
+        fullText.length < 15) {
       return;
     }
 
