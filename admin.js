@@ -45,10 +45,19 @@ const btnCloseModal = document.getElementById('btnCloseModal');
 const btnCancelEdit = document.getElementById('btnCancelEdit');
 
 document.addEventListener('DOMContentLoaded', () => {
+  const todayStr = new Date().toISOString().slice(0, 10);
   if (shiftDateInput) {
-    shiftDateInput.value = new Date().toISOString().slice(0, 10);
+    shiftDateInput.value = todayStr;
   }
+  
+  // Inicializar fecha en la nueva sección de consulta avanzada
+  const queryDateInput = document.getElementById('queryDateInput');
+  if (queryDateInput) {
+    queryDateInput.value = todayStr;
+  }
+
   populateEditStoreDropdown();
+  populateQueryStoreDropdown();
   loadAdminCases();
 });
 
@@ -79,6 +88,147 @@ function populateEditStoreDropdown() {
     });
     editStore.appendChild(optGroup);
   }
+}
+
+function populateQueryStoreDropdown() {
+  const storeSelect = document.getElementById('queryStoreSelect');
+  if (!storeSelect) return;
+
+  for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
+    const optGroup = document.createElement('optgroup');
+    optGroup.label = groupName;
+    storeList.forEach(store => {
+      const option = document.createElement('option');
+      option.value = store;
+      option.textContent = store;
+      optGroup.appendChild(option);
+    });
+    storeSelect.appendChild(optGroup);
+  }
+}
+
+// --- NUEVA FUNCIÓN: EJECUTAR CONSULTA AVANZADA POR TIENDA, FECHA, TURNO Y NOVEDAD ---
+function ejecutarConsultaAvanzada() {
+  const fechaSeleccionada = document.getElementById('queryDateInput').value;
+  const tiendaSeleccionada = document.getElementById('queryStoreSelect').value;
+  const turnoSeleccionado = document.getElementById('queryShiftSelect').value;
+  const novedadSeleccionada = document.getElementById('queryNoveltySelect').value;
+
+  const container = document.getElementById('queryResultsContainer');
+  const tbody = document.getElementById('queryResultsTableBody');
+  const totalEl = document.getElementById('qResultTotal');
+  const managerEl = document.getElementById('qResultManager');
+  const operatorsEl = document.getElementById('qResultOperators');
+
+  if (!container || !tbody) return;
+
+  // 1. Filtrar por Fecha exacta
+  let casosFiltrados = adminCases.filter(c => {
+    const fechaCreacion = c.createdAt || c.created_at;
+    if (!fechaCreacion) return false;
+    const caseDateStr = new Date(fechaCreacion).toISOString().slice(0, 10);
+    return caseDateStr === fechaSeleccionada;
+  });
+
+  // 2. Filtrar por Turno Operativo si aplica
+  if (turnoSeleccionado !== 'ALL') {
+    casosFiltrados = filtrarCasosPorTurnoLocal(casosFiltrados, fechaSeleccionada, turnoSeleccionado);
+  }
+
+  // 3. Filtrar por Tienda si aplica
+  if (tiendaSeleccionada !== 'ALL') {
+    casosFiltrados = casosFiltrados.filter(c => c.store === tiendaSeleccionada);
+  }
+
+  // 4. Filtrar por Tipo de Novedad si aplica
+  if (novedadSeleccionada !== 'ALL') {
+    casosFiltrados = casosFiltrados.filter(c => c.novelty && c.novelty.toLowerCase().includes(novedadSeleccionada.toLowerCase()));
+  }
+
+  // Actualizar métricas del resumen
+  totalEl.textContent = casosFiltrados.length;
+
+  const operatorsSet = new Set();
+  casosFiltrados.forEach(c => { if (c.operator) operatorsSet.add(c.operator); });
+  operatorsEl.textContent = operatorsSet.size > 0 ? Array.from(operatorsSet).join(', ') : 'N/A';
+
+  const managersFound = new Set();
+  casosFiltrados.forEach(c => {
+    const text = (c.solution || '').toLowerCase();
+    if (text.includes('mehad')) managersFound.add('Gerente Mehad');
+    if (text.includes('omar')) managersFound.add('Gerente Omar');
+    if (text.includes('osman')) managersFound.add('Gerente Osman');
+  });
+  managerEl.textContent = managersFound.size > 0 ? Array.from(managersFound).join(', ') : 'Turno Regular';
+
+  // Renderizar tabla de resultados
+  tbody.innerHTML = '';
+  if (casosFiltrados.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-3 py-6 text-center text-slate-500">No se encontraron registros para los filtros seleccionados.</td></tr>`;
+  } else {
+    casosFiltrados.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-750/50 border-b border-slate-700/40";
+      tr.innerHTML = `
+        <td class="px-3 py-2 font-medium text-slate-100">${c.store || 'N/A'}</td>
+        <td class="px-3 py-2 text-slate-400">${c.startTime || '08:00'} - ${c.endTime || '16:00'}</td>
+        <td class="px-3 py-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">${c.novelty || 'General'}</span>
+        </td>
+        <td class="px-3 py-2 text-slate-300 max-w-xs truncate" title="${c.solution || ''}">${c.solution || '-'}</td>
+        <td class="px-3 py-2 text-slate-400">${c.operator || 'Operador'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  container.classList.remove('hidden');
+}
+
+// Helpers locales para filtrado de turnos en cliente
+function filtrarCasosPorTurnoLocal(casos, fechaStr, turno) {
+  const [year, month, day] = fechaStr.split('-').map(Number);
+  const targetDate = new Date(Date.UTC(year, month - 1, day));
+  const nextDateObj = new Date(targetDate);
+  nextDateObj.setDate(nextDateObj.getDate() + 1);
+  const nextDateStr = nextDateObj.toISOString().slice(0, 10);
+
+  return casos.filter(c => {
+    const fechaCreacionRaw = c.createdAt || c.created_at;
+    if (!fechaCreacionRaw) return false;
+
+    const caseDateObj = new Date(fechaCreacionRaw);
+    const caseDateStr = caseDateObj.toISOString().slice(0, 10);
+    const minutosInicio = parseHoraAMinutosLocal(c.startTime, fechaCreacionRaw);
+
+    if (turno === 'dia') {
+      return (caseDateStr === fechaStr) && (minutosInicio >= 510 && minutosInicio < 1080);
+    } else if (turno === 'noche') {
+      return (caseDateStr === fechaStr) && (minutosInicio >= 1080 && minutosInicio < 1320);
+    } else if (turno === 'madrugada') {
+      const esNocheMismaFecha = (caseDateStr === fechaStr) && (minutosInicio >= 1320);
+      const esMadrugadaDiaSiguiente = (caseDateStr === nextDateStr) && (minutosInicio < 420);
+      return esNocheMismaFecha || esMadrugadaDiaSiguiente;
+    }
+    return true;
+  });
+}
+
+function parseHoraAMinutosLocal(horaStr, defaultDate) {
+  if (!horaStr) {
+    if (!defaultDate) return 0;
+    const d = new Date(defaultDate);
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  if (typeof horaStr === 'string' && horaStr.includes(':')) {
+    const parts = horaStr.trim().split(':');
+    let h = parseInt(parts[0], 10) || 0;
+    let m = parseInt(parts[1], 10) || 0;
+    if (horaStr.toLowerCase().includes('pm') && h < 12) h += 12;
+    if (horaStr.toLowerCase().includes('am') && h === 12) h = 0;
+    return h * 60 + m;
+  }
+  return 0;
 }
 
 // --- ACTUALIZAR KPIS Y GRÁFICOS GENERALES ---
@@ -184,7 +334,7 @@ function renderCharts(noveltyCounts, storeCounts) {
   });
 }
 
-// --- VISTA PREVIA Y CORTES POR TURNO (CON DETECCIÓN DE OPERADOR) ---
+// --- VISTA PREVIA Y CORTES POR TURNO ---
 async function previsualizarTurno(turno) {
   const fecha = shiftDateInput ? shiftDateInput.value : new Date().toISOString().slice(0, 10);
   try {
@@ -209,7 +359,7 @@ function openShiftModal(turno, fecha, data) {
   const title = document.getElementById('shiftModalTitle');
   const totalEl = document.getElementById('shiftModalTotal');
   const topStoreEl = document.getElementById('shiftModalTopStore');
-  const topOperatorEl = document.getElementById('shiftModalOperator'); // Elemento para operador
+  const topOperatorEl = document.getElementById('shiftModalOperator');
 
   const turnoNombres = {
     'dia': 'Día / Tarde (08:30 - 18:00)',
@@ -220,7 +370,6 @@ function openShiftModal(turno, fecha, data) {
   title.innerHTML = `<i class="fa-solid fa-chart-pie text-purple-400 mr-2"></i> Corte Turno ${turnoNombres[turno] || turno.toUpperCase()} - ${fecha}`;
   totalEl.textContent = data.totalCasos;
 
-  // Agrupar Tiendas u Operadores
   const storeCounts = {};
   const operatorCounts = {};
 

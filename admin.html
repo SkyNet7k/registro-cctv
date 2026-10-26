@@ -69,6 +69,99 @@
       </div>
     </div>
 
+    <!-- NUEVA SECCIÓN: Consulta Operativa por Tienda, Fecha, Turno y Novedad -->
+    <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700 pb-3 gap-3">
+        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <i class="fa-solid fa-store text-purple-400"></i>
+          Consulta Operativa por Tienda y Filtros Avanzados
+        </h3>
+        <span class="text-xs text-slate-400">Desglose detallado por sede, fecha, turno y novedad</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <!-- Selector de Fecha -->
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-1">Fecha de Consulta:</label>
+          <input type="date" id="queryDateInput" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+
+        <!-- Selector de Tienda -->
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-1">Tienda / Sucursal:</label>
+          <select id="queryStoreSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="ALL">Todas las Sedes</option>
+            <!-- Se llena dinámicamente desde admin.js -->
+          </select>
+        </div>
+
+        <!-- Selector de Turno -->
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-1">Turno Operativo:</label>
+          <select id="queryShiftSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="ALL">Todos los Turnos</option>
+            <option value="dia">Día / Tarde (08:30 - 18:00)</option>
+            <option value="noche">Cierre / Noche (18:00 - 22:00)</option>
+            <option value="madrugada">Madrugada (22:00 - 07:00)</option>
+          </select>
+        </div>
+
+        <!-- Selector de Tipo de Novedad -->
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-1">Tipo de Novedad:</label>
+          <select id="queryNoveltySelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="ALL">Todas las Novedades</option>
+            <option value="Faltante / Caja">Faltante / Caja</option>
+            <option value="Personal Interno">Personal Interno</option>
+            <option value="Hurto / Tentativa">Hurto / Tentativa</option>
+            <option value="Objetos Olvidados">Objetos Olvidados</option>
+            <option value="Daños / Infraestructura">Daños / Infraestructura</option>
+            <option value="Otro / General">Otro / General</option>
+          </select>
+        </div>
+
+        <!-- Botón de Ejecutar Consulta -->
+        <div class="flex items-end">
+          <button onclick="ejecutarConsultaAvanzada()" class="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium shadow transition h-[34px]">
+            <i class="fa-solid fa-magnifying-glass"></i> Consultar
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultados de la Consulta Avanzada -->
+      <div id="queryResultsContainer" class="hidden space-y-3 pt-3 border-t border-slate-700">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+            <p class="text-[11px] text-slate-400">Casos Encontrados</p>
+            <h4 id="qResultTotal" class="text-lg font-bold text-white mt-0.5">0</h4>
+          </div>
+          <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+            <p class="text-[11px] text-slate-400">Supervisor / Gerente Reportado</p>
+            <h4 id="qResultManager" class="text-xs font-bold text-purple-400 mt-1">N/A</h4>
+          </div>
+          <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+            <p class="text-[11px] text-slate-400">Operadores Actuantes</p>
+            <h4 id="qResultOperators" class="text-xs font-bold text-cyan-400 mt-1 truncate">N/A</h4>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-slate-700">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700">
+              <tr>
+                <th class="px-3 py-2">Tienda</th>
+                <th class="px-3 py-2">Horario</th>
+                <th class="px-3 py-2">Novedad</th>
+                <th class="px-3 py-2">Solución / Observaciones</th>
+                <th class="px-3 py-2">Operador</th>
+              </tr>
+            </thead>
+            <tbody id="queryResultsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- KPIs -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex items-center justify-between">
