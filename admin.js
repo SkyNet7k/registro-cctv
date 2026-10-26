@@ -12,6 +12,7 @@ const STORE_GROUPS = {
 };
 
 let adminCases = [];
+let pendingImportCases = [];
 let trendChartInstance = null;
 let doughnutChartInstance = null;
 let shiftPreviewChartInstance = null;
@@ -50,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
     shiftDateInput.value = todayStr;
   }
   
-  // Inicializar fecha en la nueva sección de consulta avanzada
   const queryDateInput = document.getElementById('queryDateInput');
   if (queryDateInput) {
     queryDateInput.value = todayStr;
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   populateEditStoreDropdown();
   populateQueryStoreDropdown();
+  populateBulkStoreDropdown();
   loadAdminCases();
 });
 
@@ -107,7 +108,24 @@ function populateQueryStoreDropdown() {
   }
 }
 
-// --- NUEVA FUNCIÓN: EJECUTAR CONSULTA AVANZADA POR TIENDA, FECHA, TURNO Y NOVEDAD ---
+function populateBulkStoreDropdown() {
+  const bulkSelect = document.getElementById('bulkStoreSelect');
+  if (!bulkSelect) return;
+
+  for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
+    const optGroup = document.createElement('optgroup');
+    optGroup.label = groupName;
+    storeList.forEach(store => {
+      const option = document.createElement('option');
+      option.value = store;
+      option.textContent = store;
+      optGroup.appendChild(option);
+    });
+    bulkSelect.appendChild(optGroup);
+  }
+}
+
+// --- CONSULTA AVANZADA POR TIENDA, FECHA, TURNO Y NOVEDAD ---
 function ejecutarConsultaAvanzada() {
   const fechaSeleccionada = document.getElementById('queryDateInput').value;
   const tiendaSeleccionada = document.getElementById('queryStoreSelect').value;
@@ -122,7 +140,6 @@ function ejecutarConsultaAvanzada() {
 
   if (!container || !tbody) return;
 
-  // 1. Filtrar por Fecha exacta
   let casosFiltrados = adminCases.filter(c => {
     const fechaCreacion = c.createdAt || c.created_at;
     if (!fechaCreacion) return false;
@@ -130,22 +147,18 @@ function ejecutarConsultaAvanzada() {
     return caseDateStr === fechaSeleccionada;
   });
 
-  // 2. Filtrar por Turno Operativo si aplica
   if (turnoSeleccionado !== 'ALL') {
     casosFiltrados = filtrarCasosPorTurnoLocal(casosFiltrados, fechaSeleccionada, turnoSeleccionado);
   }
 
-  // 3. Filtrar por Tienda si aplica
   if (tiendaSeleccionada !== 'ALL') {
     casosFiltrados = casosFiltrados.filter(c => c.store === tiendaSeleccionada);
   }
 
-  // 4. Filtrar por Tipo de Novedad si aplica
   if (novedadSeleccionada !== 'ALL') {
     casosFiltrados = casosFiltrados.filter(c => c.novelty && c.novelty.toLowerCase().includes(novedadSeleccionada.toLowerCase()));
   }
 
-  // Actualizar métricas del resumen
   totalEl.textContent = casosFiltrados.length;
 
   const operatorsSet = new Set();
@@ -161,7 +174,6 @@ function ejecutarConsultaAvanzada() {
   });
   managerEl.textContent = managersFound.size > 0 ? Array.from(managersFound).join(', ') : 'Turno Regular';
 
-  // Renderizar tabla de resultados
   tbody.innerHTML = '';
   if (casosFiltrados.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="px-3 py-6 text-center text-slate-500">No se encontraron registros para los filtros seleccionados.</td></tr>`;
@@ -185,7 +197,6 @@ function ejecutarConsultaAvanzada() {
   container.classList.remove('hidden');
 }
 
-// Helpers locales para filtrado de turnos en cliente
 function filtrarCasosPorTurnoLocal(casos, fechaStr, turno) {
   const [year, month, day] = fechaStr.split('-').map(Number);
   const targetDate = new Date(Date.UTC(year, month - 1, day));
@@ -229,6 +240,227 @@ function parseHoraAMinutosLocal(horaStr, defaultDate) {
     return h * 60 + m;
   }
   return 0;
+}
+
+// --- IMPORTACIÓN MASIVA DESDE TXT CON MODAL DE VISTA PREVIA ---
+if (txtFileInput) {
+  txtFileInput.addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    pendingImportCases = [];
+
+    for (const file of files) {
+      try {
+        const textContent = await readFileContent(file);
+        if (!textContent || textContent.trim() === "") continue;
+
+        const parsedCases = parseTxtReportWhatsApp(textContent);
+        pendingImportCases.push(...parsedCases);
+      } catch (err) {
+        console.error(`Error al procesar el archivo ${file.name}:`, err);
+      }
+    }
+
+    txtFileInput.value = '';
+
+    if (pendingImportCases.length === 0) {
+      alert('No se detectaron reportes válidos en el archivo TXT cargado.');
+      return;
+    }
+
+    openImportTxtModal();
+  });
+}
+
+function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target.result);
+    reader.onerror = (error) => reject(error);
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function openImportTxtModal() {
+  const modal = document.getElementById('importTxtModal');
+  const countEl = document.getElementById('importTxtCount');
+  const tbody = document.getElementById('importTxtTableBody');
+
+  if (!modal || !tbody) return;
+
+  if (countEl) countEl.textContent = `${pendingImportCases.length} registros detectados`;
+  tbody.innerHTML = '';
+
+  pendingImportCases.forEach((item, index) => {
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-750/50";
+
+    let storeOptionsHtml = `<option value="Sucursal General">Sucursal General</option>`;
+    for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
+      storeOptionsHtml += `<optgroup label="${groupName}">`;
+      storeList.forEach(st => {
+        const selected = item.store === st ? 'selected' : '';
+        storeOptionsHtml += `<option value="${st}" ${selected}>${st}</option>`;
+      });
+      storeOptionsHtml += `</optgroup>`;
+    }
+
+    tr.innerHTML = `
+      <td class="px-3 py-2 text-center text-slate-400 font-mono">${index + 1}</td>
+      <td class="px-3 py-2">
+        <select onchange="updatePendingCaseStore(${index}, this.value)" class="row-store-select w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:ring-1 focus:ring-purple-500">
+          ${storeOptionsHtml}
+        </select>
+      </td>
+      <td class="px-3 py-2">
+        <select onchange="updatePendingCaseNovelty(${index}, this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-purple-300 focus:ring-1 focus:ring-purple-500">
+          <option value="Faltante / Caja" ${item.novelty === 'Faltante / Caja' ? 'selected' : ''}>Faltante / Caja</option>
+          <option value="Personal Interno" ${item.novelty === 'Personal Interno' ? 'selected' : ''}>Personal Interno</option>
+          <option value="Hurto / Tentativa" ${item.novelty === 'Hurto / Tentativa' ? 'selected' : ''}>Hurto / Tentativa</option>
+          <option value="Objetos Olvidados" ${item.novelty === 'Objetos Olvidados' ? 'selected' : ''}>Objetos Olvidados</option>
+          <option value="Daños / Infraestructura" ${item.novelty === 'Daños / Infraestructura' ? 'selected' : ''}>Daños / Infraestructura</option>
+          <option value="Otro / General" ${item.novelty === 'Otro / General' ? 'selected' : ''}>Otro / General</option>
+        </select>
+      </td>
+      <td class="px-3 py-2 text-slate-300 text-xs">
+        <div class="line-clamp-2" title="${item.details}">${item.details}</div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  modal.classList.remove('hidden');
+}
+
+function closeImportTxtModal() {
+  const modal = document.getElementById('importTxtModal');
+  if (modal) modal.classList.add('hidden');
+  pendingImportCases = [];
+}
+
+window.aplicarSedeMasiva = function(storeValue) {
+  if (!storeValue) return;
+  pendingImportCases.forEach(c => c.store = storeValue);
+  document.querySelectorAll('.row-store-select').forEach(select => {
+    select.value = storeValue;
+  });
+};
+
+window.updatePendingCaseStore = function(index, storeValue) {
+  if (pendingImportCases[index]) {
+    pendingImportCases[index].store = storeValue;
+  }
+};
+
+window.updatePendingCaseNovelty = function(index, noveltyValue) {
+  if (pendingImportCases[index]) {
+    pendingImportCases[index].novelty = noveltyValue;
+  }
+};
+
+window.confirmarImportacionMasiva = async function() {
+  if (pendingImportCases.length === 0) return;
+
+  const btnConfirm = document.getElementById('btnConfirmImportTxt');
+  if (btnConfirm) {
+    btnConfirm.disabled = true;
+    btnConfirm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando...`;
+  }
+
+  let importedCount = 0;
+
+  for (const caseData of pendingImportCases) {
+    try {
+      const res = await fetch('/api/casos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(caseData)
+      });
+      if (res.ok) importedCount++;
+    } catch (err) {
+      console.error('Error al guardar caso masivo:', err);
+    }
+  }
+
+  if (btnConfirm) {
+    btnConfirm.disabled = false;
+    btnConfirm.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Confirmar e Importar a DB`;
+  }
+
+  closeImportTxtModal();
+  alert(`¡Importación masiva completada! Se guardaron ${importedCount} registros en la base de datos.`);
+  loadAdminCases();
+};
+
+function parseTxtReportWhatsApp(text) {
+  const cases = [];
+  const rawBlocks = text.split(/(?=\[\d{1,2}\/\d{1,2}\/\d{2,4},\s*\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM)?\])/i);
+
+  rawBlocks.forEach((block) => {
+    const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return;
+
+    const fullText = lines.join(' ');
+    const lowerText = fullText.toLowerCase();
+
+    if (lowerText.includes('mensajes y las llamadas están cifrados') || 
+        lowerText.includes('imagen omitida') || 
+        lowerText.includes('sticker omitido') || 
+        lowerText.includes('mensaje de voz omitido')) {
+      return;
+    }
+
+    let detectedStore = "Sucursal General";
+    for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
+      for (const st of storeList) {
+        const storeClean = st.toLowerCase().replace('-', '');
+        if (lowerText.includes(st.toLowerCase()) || lowerText.includes(storeClean)) {
+          detectedStore = st;
+          break;
+        }
+      }
+    }
+
+    let category = "Otro / General";
+    if (lowerText.includes('faltante') || lowerText.includes('cuadre') || lowerText.includes('caja') || lowerText.includes('billete')) {
+      category = "Faltante / Caja";
+    } else if (lowerText.includes('almacen') || lowerText.includes('emplead') || lowerText.includes('promotor') || lowerText.includes('cajera')) {
+      category = "Personal Interno";
+    } else if (lowerText.includes('hurto') || lowerText.includes('robo') || lowerText.includes('bolso') || lowerText.includes('salia')) {
+      category = "Hurto / Tentativa";
+    } else if (lowerText.includes('olvid') || lowerText.includes('telefono') || lowerText.includes('cartera')) {
+      category = "Objetos Olvidados";
+    } else if (lowerText.includes('se cayo') || lowerText.includes('roto') || lowerText.includes('danado')) {
+      category = "Daños / Infraestructura";
+    }
+
+    let startTime = "08:00";
+    const timeMatch = block.match(/\[\d{1,2}\/\d{1,2}\/\d{2,4},\s*(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM)?)/i);
+    if (timeMatch && timeMatch[1]) {
+      startTime = timeMatch[1];
+    }
+
+    let operator = "WhatsApp Importado";
+    const senderMatch = block.match(/\]\s*([^:]+):/);
+    if (senderMatch && senderMatch[1]) {
+      operator = senderMatch[1].trim();
+    }
+
+    cases.push({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      operator: operator,
+      store: detectedStore,
+      startTime: startTime,
+      endTime: startTime,
+      novelty: category,
+      details: fullText.replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '').trim(),
+      solution: `Reportado vía WhatsApp por ${operator}`,
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  return cases;
 }
 
 // --- ACTUALIZAR KPIS Y GRÁFICOS GENERALES ---
@@ -477,10 +709,10 @@ function openShiftModal(turno, fecha, data) {
   if (modal) modal.classList.remove('hidden');
 }
 
-function closeShiftModal() {
+window.closeShiftModal = function() {
   const modal = document.getElementById('shiftModal');
   if (modal) modal.classList.add('hidden');
-}
+};
 
 // --- RENDERIZAR TABLA PRINCIPAL ---
 function renderAdminTable() {
@@ -540,136 +772,6 @@ function renderAdminTable() {
 }
 
 if (adminSearchInput) adminSearchInput.addEventListener('input', renderAdminTable);
-
-// --- IMPORTACIÓN MASIVA DE ARCHIVOS TXT ---
-if (txtFileInput) {
-  txtFileInput.addEventListener('change', async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    let importedCount = 0;
-
-    for (const file of files) {
-      try {
-        const textContent = await readFileContent(file);
-        if (!textContent || textContent.trim() === "") continue;
-
-        const parsedCases = parseTxtReport(textContent);
-
-        for (const caseData of parsedCases) {
-          const res = await fetch('/api/casos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(caseData)
-          });
-
-          if (res.ok) {
-            importedCount++;
-          }
-        }
-      } catch (err) {
-        console.error(`Error al procesar el archivo ${file.name}:`, err);
-      }
-    }
-
-    txtFileInput.value = '';
-    alert(`¡Importación exitosa! Se registraron ${importedCount} casos individuales en la base de datos.`);
-    loadAdminCases();
-  });
-}
-
-function readFileContent(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(event.target.result);
-    reader.onerror = (error) => reject(error);
-    reader.readAsText(file, 'UTF-8');
-  });
-}
-
-function parseTxtReport(text) {
-  const cases = [];
-  const rawBlocks = text.split(/(?=\bSede\b|\*Sede|\*Departamento de seguridad|\*Dpto|\bDepartamento de seguridad)/i);
-
-  rawBlocks.forEach((block) => {
-    const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-    if (lines.length < 2) return;
-
-    let detectedStore = "Sucursal General";
-    let detectedOperator = "Operador Importado";
-    let noveltyDetails = [];
-    let solutionText = [];
-    let actionText = [];
-    let actorsText = [];
-
-    lines.forEach(line => {
-      const cleanLine = line.replace(/^\*+|\*+$/g, '').trim();
-      const lower = cleanLine.toLowerCase();
-
-      if (lower.startsWith('sede:') || lower.startsWith('sede #') || lower.startsWith('sede')) {
-        const parts = cleanLine.split(':');
-        if (parts.length > 1 && parts[1].trim() !== "") {
-          detectedStore = parts[1].trim();
-        }
-      } else if (lower.startsWith('novedad:') || lower.startsWith('notificación:') || lower.startsWith('novedad')) {
-        const parts = cleanLine.split(':');
-        if (parts.length > 1 && parts[1].trim() !== "") {
-          noveltyDetails.push(parts[1].trim());
-        }
-      } else if (lower.startsWith('solución:') || lower.startsWith('soluciones:') || lower.startsWith('solución')) {
-        const parts = cleanLine.split(':');
-        if (parts.length > 1 && parts[1].trim() !== "") {
-          solutionText.push(parts[1].trim());
-        }
-      } else if (lower.startsWith('acciones:') || lower.startsWith('acción:')) {
-        const parts = cleanLine.split(':');
-        if (parts.length > 1 && parts[1].trim() !== "") {
-          actionText.push(parts[1].trim());
-        }
-      } else if (lower.startsWith('actuante:') || lower.startsWith('actuantes:')) {
-        const parts = cleanLine.split(':');
-        if (parts.length > 1 && parts[1].trim() !== "") {
-          actorsText.push(parts[1].trim());
-        }
-      } else {
-        if (!lower.includes('dpto. de seguridad') && !lower.includes('departamento de seguridad')) {
-          noveltyDetails.push(cleanLine);
-        }
-      }
-    });
-
-    const fullDetails = noveltyDetails.join(' ') || 'Reporte importado desde archivo de texto';
-    const fullSolution = solutionText.join(' ') || 'N/A';
-    const fullActions = actionText.join(' ') || 'N/A';
-    const fullActors = actorsText.join(' ') || '-';
-
-    let category = "Otro / General";
-    const textCheck = fullDetails.toLowerCase();
-    if (textCheck.includes('accidente') || textCheck.includes('corta') || textCheck.includes('herida') || textCheck.includes('se siente mal')) {
-      category = "Accidente Laboral";
-    } else if (textCheck.includes('hurto') || textCheck.includes('tentativa') || textCheck.includes('roba') || textCheck.includes('inmoviliz')) {
-      category = "Hurto / Tentativa";
-    } else if (textCheck.includes('sospechos')) {
-      category = "Actitud Sospechosa";
-    } else if (textCheck.includes('bolso') || textCheck.includes('olvidada')) {
-      category = "Incidencia de Personal";
-    }
-
-    cases.push({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      operator: detectedOperator,
-      store: detectedStore,
-      startTime: "08:00",
-      endTime: "16:00",
-      novelty: category,
-      details: fullDetails,
-      solution: `Solución: ${fullSolution} | Acciones: ${fullActions} | Actuantes: ${fullActors}`,
-      createdAt: new Date().toISOString()
-    });
-  });
-
-  return cases;
-}
 
 // --- MODAL DE EDICIÓN CRUD ---
 window.openEditModal = function(id) {
