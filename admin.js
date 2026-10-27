@@ -460,6 +460,9 @@ function parseTxtReportWhatsApp(text) {
       operator = senderMatch[1].trim();
     }
 
+    // Extraer limpiamente el mensaje real de la novedad reportada en el chat
+    const cleanedDetails = fullText.replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '').trim();
+
     cases.push({
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       operator: operator,
@@ -467,8 +470,8 @@ function parseTxtReportWhatsApp(text) {
       startTime: startTime,
       endTime: startTime,
       novelty: category,
-      details: fullText.replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '').trim(),
-      solution: `Reportado vía WhatsApp por ${operator}`,
+      details: cleanedDetails,
+      solution: cleanedDetails, // <-- Aquí guardamos la novedad real en lugar de una frase genérica
       createdAt: new Date().toISOString()
     });
   });
