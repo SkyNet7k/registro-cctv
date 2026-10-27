@@ -243,11 +243,11 @@ app.delete('/api/casos/:id', async (req, res) => {
   }
 });
 
-// 5. Borrado total o Borrado Selectivo por filtros (Fecha, Sede, Operador)
+// 5. Borrado total o Borrado Selectivo con coincidencia flexible por Fecha, Sede y Operador
 app.delete('/api/casos', async (req, res) => {
   const { fecha, store, operator } = req.query;
   try {
-    if (!fecha && !store && !operator) {
+    if (!fecha && (!store || store === 'ALL') && (!operator || operator.trim() === '')) {
       await pool.query('DELETE FROM casos');
       return res.json({ status: 'ok', message: 'Todos los casos fueron eliminados' });
     }
@@ -263,12 +263,27 @@ app.delete('/api/casos', async (req, res) => {
       let match = true;
       if (fecha && caseDate !== fecha) match = false;
       if (store && store !== 'ALL' && c.store !== store) match = false;
-      if (operator && operator.trim() !== '' && !(c.operator || '').toLowerCase().includes(operator.toLowerCase())) match = false;
+      if (operator && operator.trim() !== '') {
+        const opVal = (c.operator || '').toLowerCase();
+        const searchOp = operator.toLowerCase();
+        if (!opVal.includes(searchOp)) match = false;
+      }
 
       if (match) {
         idsToDelete.push(row.id);
       }
     });
+
+    // Si con el filtro estricto no se encontró nada pero se especificó fecha y sede, permitir borrar por fecha y sede
+    if (idsToDelete.length === 0 && fecha && store && store !== 'ALL') {
+      result.rows.forEach(row => {
+        const c = row.data || {};
+        const caseDate = (c.createdAt || row.created_at || '').slice(0, 10);
+        if (caseDate === fecha && c.store === store) {
+          idsToDelete.push(row.id);
+        }
+      });
+    }
 
     if (idsToDelete.length > 0) {
       for (const id of idsToDelete) {
