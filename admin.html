@@ -277,6 +277,58 @@
     </div>
   </div>
 
+  <!-- Modal de Edición de Registro -->
+  <div id="editModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="text-base font-semibold text-white flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-blue-400"></i> Editar Registro de Novedad
+        </h3>
+        <button id="btnCloseModal" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form id="editForm" class="space-y-3">
+        <input type="hidden" id="editId">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Operador CCTV:</label>
+          <input type="text" id="editOperator" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tienda / Sucursal:</label>
+          <select id="editStore" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:ring-2 focus:ring-purple-500"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Hora Inicio:</label>
+            <input type="text" id="editStartTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Hora Fin:</label>
+            <input type="text" id="editEndTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo de Novedad:</label>
+          <select id="editNovelty" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100">
+            <option value="Faltante / Caja">Faltante / Caja</option>
+            <option value="Personal Interno">Personal Interno</option>
+            <option value="Hurto / Tentativa">Hurto / Tentativa</option>
+            <option value="Objetos Olvidados">Objetos Olvidados</option>
+            <option value="Daños / Infraestructura">Daños / Infraestructura</option>
+            <option value="Otro / General">Otro / General</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Solución / Observaciones:</label>
+          <textarea id="editSolution" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 resize-none"></textarea>
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button type="button" id="btnCancelEdit" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium transition">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition shadow">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal de Vista Previa y Confirmación de Importación TXT (WhatsApp) -->
   <div id="importTxtModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-4xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
