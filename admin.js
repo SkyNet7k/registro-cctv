@@ -56,6 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
     queryDateInput.value = todayStr;
   }
 
+  // Inicializar fecha y selector de sedes para el panel de borrado selectivo
+  const purgeDateInput = document.getElementById('purgeDateInput');
+  if (purgeDateInput) purgeDateInput.value = todayStr;
+
+  populatePurgeStoreDropdown();
   populateEditStoreDropdown();
   populateQueryStoreDropdown();
   populateBulkStoreDropdown();
@@ -72,6 +77,22 @@ async function loadAdminCases() {
     }
   } catch (err) {
     console.error('Error al cargar casos en panel admin:', err);
+  }
+}
+
+function populatePurgeStoreDropdown() {
+  const purgeStoreSelect = document.getElementById('purgeStoreSelect');
+  if (!purgeStoreSelect) return;
+  for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
+    const optGroup = document.createElement('optgroup');
+    optGroup.label = groupName;
+    storeList.forEach(store => {
+      const option = document.createElement('option');
+      option.value = store;
+      option.textContent = store;
+      optGroup.appendChild(option);
+    });
+    purgeStoreSelect.appendChild(optGroup);
   }
 }
 
@@ -122,6 +143,44 @@ function populateBulkStoreDropdown() {
       optGroup.appendChild(option);
     });
     bulkSelect.appendChild(optGroup);
+  }
+}
+
+// --- BORRADO SELECTIVO (NUEVO) ---
+async function ejecutarBorradoSelectivo() {
+  const fecha = document.getElementById('purgeDateInput').value;
+  const store = document.getElementById('purgeStoreSelect').value;
+  const operator = document.getElementById('purgeOperatorInput').value.trim();
+
+  if (!fecha && store === 'ALL' && !operator) {
+    alert('Por favor selecciona al menos un criterio (Fecha, Sede u Operador) para el borrado selectivo.');
+    return;
+  }
+
+  if (!confirm(`⚠️ ¿Estás seguro de eliminar los registros que coincidan con:\n- Fecha: ${fecha || 'Todas'}\n- Sede: ${store}\n- Operador: ${operator || 'Cualquiera'}?`)) {
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams();
+    if (fecha) params.append('fecha', fecha);
+    if (store && store !== 'ALL') params.append('store', store);
+    if (operator) params.append('operator', operator);
+
+    const res = await fetch(`/api/casos?${params.toString()}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      const resp = await res.json();
+      alert(resp.message || 'Depuración completada con éxito.');
+      loadAdminCases();
+    } else {
+      alert('Error al ejecutar el borrado selectivo.');
+    }
+  } catch (err) {
+    console.error('Error al conectar con la API de borrado:', err);
+    alert('Error de red al intentar eliminar los registros.');
   }
 }
 
@@ -471,7 +530,7 @@ function parseTxtReportWhatsApp(text) {
       endTime: startTime,
       novelty: category,
       details: cleanedDetails,
-      solution: cleanedDetails, // <-- Aquí guardamos la novedad real en lugar de una frase genérica
+      solution: cleanedDetails,
       createdAt: new Date().toISOString()
     });
   });

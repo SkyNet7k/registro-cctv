@@ -93,11 +93,6 @@ function filtrarCasosPorTurno(casos, fechaStr, turno) {
     // 2. Extraer los minutos desde startTime o desde la fecha de creación ISO
     const minutosInicio = parseHoraAMinutos(c.startTime, fechaCreacionRaw);
 
-    // Minutos límites de turnos:
-    // Turno Día: 08:30 AM (510 min) a 06:00 PM (1080 min)
-    // Turno Noche: 06:00 PM (1080 min) a 10:00 PM (1320 min)
-    // Turno Madrugada: 10:00 PM (1320 min) a 07:00 AM del día siguiente (420 min)
-
     if (turno === 'dia') {
       return (caseDateStr === targetDateStr) && (minutosInicio >= 510 && minutosInicio < 1080);
     } 
@@ -237,7 +232,7 @@ app.put('/api/casos/:id', async (req, res) => {
   }
 });
 
-// 4. Eliminar caso por ID
+// 4. Eliminar caso por ID específico
 app.delete('/api/casos/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -248,13 +243,43 @@ app.delete('/api/casos/:id', async (req, res) => {
   }
 });
 
-// 5. Limpiar base de datos
+// 5. Borrado total o Borrado Selectivo por filtros (Fecha, Sede, Operador)
 app.delete('/api/casos', async (req, res) => {
+  const { fecha, store, operator } = req.query;
   try {
-    await pool.query('DELETE FROM casos');
-    res.json({ status: 'ok', message: 'Todos los casos fueron eliminados' });
+    if (!fecha && !store && !operator) {
+      await pool.query('DELETE FROM casos');
+      return res.json({ status: 'ok', message: 'Todos los casos fueron eliminados' });
+    }
+
+    const result = await pool.query('SELECT id, data, created_at FROM casos');
+    const idsToDelete = [];
+
+    result.rows.forEach(row => {
+      const c = row.data || {};
+      const createdAt = c.createdAt || row.created_at || '';
+      const caseDate = createdAt.slice(0, 10);
+
+      let match = true;
+      if (fecha && caseDate !== fecha) match = false;
+      if (store && store !== 'ALL' && c.store !== store) match = false;
+      if (operator && operator.trim() !== '' && !(c.operator || '').toLowerCase().includes(operator.toLowerCase())) match = false;
+
+      if (match) {
+        idsToDelete.push(row.id);
+      }
+    });
+
+    if (idsToDelete.length > 0) {
+      for (const id of idsToDelete) {
+        await pool.query('DELETE FROM casos WHERE id = $1', [id]);
+      }
+    }
+
+    res.json({ status: 'ok', message: `Se eliminaron ${idsToDelete.length} registros coincidentes.` });
   } catch (err) {
-    res.status(500).json({ error: 'Error al limpiar la base de datos' });
+    console.error('Error en borrado selectivo:', err);
+    res.status(500).json({ error: 'Error al depurar la base de datos' });
   }
 });
 
@@ -321,7 +346,6 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
 
 // --- TAREAS PROGRAMADAS AUTOMÁTICAS (CRON JOBS DE ENVIOS DE CORTE) ---
 
-// Helper para compilar y transmitir automáticamente el corte por WhatsApp
 async function ejecutarCorteYNotificar(turnoNombre) {
   try {
     const hoyStr = new Date().toISOString().slice(0, 10);
@@ -329,13 +353,10 @@ async function ejecutarCorteYNotificar(turnoNombre) {
     const allCases = result.rows.map(r => r.data || {});
     const casosTurno = filtrarCasosPorTurno(allCases, hoyStr, turnoNombre);
 
-    // Generar archivo Excel
     await generarExcelTurno(casosTurno, turnoNombre, hoyStr);
 
-    // Formatear mensaje
     const mensaje = `📊 *CIERRE AUTOMÁTICO DE TURNO CCTV* (${turnoNombre.toUpperCase()})\n📅 Fecha: ${hoyStr}\n📌 Total Casos Registrados: ${casosTurno.length}\n_Corte procesado automáticamente por el servidor._`;
 
-    // Enviar a WhatsApp
     const INSTANCE_ID = process.env.WA_INSTANCE_ID; 
     const API_TOKEN = process.env.WA_API_TOKEN;
     if (INSTANCE_ID && API_TOKEN) {
@@ -351,19 +372,16 @@ async function ejecutarCorteYNotificar(turnoNombre) {
   }
 }
 
-// 1. Cierre Turno Día: 6:00 PM (18:00)
 cron.schedule('0 18 * * *', () => {
   console.log('⏰ Ejecutando cron job: Turno Día (18:00)');
   ejecutarCorteYNotificar('dia');
 });
 
-// 2. Cierre Turno Noche: 10:00 PM (22:00)
 cron.schedule('0 22 * * *', () => {
   console.log('⏰ Ejecutando cron job: Turno Noche (22:00)');
   ejecutarCorteYNotificar('noche');
 });
 
-// 3. Cierre Turno Madrugada: 7:00 AM (07:00)
 cron.schedule('0 7 * * *', () => {
   console.log('⏰ Ejecutando cron job: Turno Madrugada (07:00)');
   ejecutarCorteYNotificar('madrugada');
