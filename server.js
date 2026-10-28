@@ -229,7 +229,7 @@ app.delete('/api/casos/:id', async (req, res) => {
   }
 });
 
-// --- RUTA DE BORRADO SELECTIVO ROBUSTA Y FLEXIBLE (ACTUALIZADA) ---
+// --- RUTA DE BORRADO SELECTIVO CON SOPORTE DE ZONA HORARIA LOCAL ---
 app.delete('/api/casos', async (req, res) => {
   const { fecha, store, operator } = req.query;
   try {
@@ -243,13 +243,20 @@ app.delete('/api/casos', async (req, res) => {
 
     result.rows.forEach(row => {
       const c = row.data || {};
-      const createdAt = c.createdAt || row.created_at || '';
-      const caseDate = createdAt.slice(0, 10);
+      const rawDate = c.createdAt || row.created_at;
+      if (!rawDate) return;
+
+      // Convertir la fecha del registro a fecha local para evitar desfases de UTC
+      const dateObj = new Date(rawDate);
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const caseLocalDate = `${year}-${month}-${day}`;
 
       let match = true;
 
       // 1. Validar Fecha
-      if (fecha && caseDate !== fecha) {
+      if (fecha && caseLocalDate !== fecha) {
         match = false;
       }
 
