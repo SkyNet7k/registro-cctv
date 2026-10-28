@@ -192,11 +192,12 @@ function renderCases() {
 
   if (tableCountInfo) tableCountInfo.textContent = `Mostrando ${filtered.length} de ${cases.length} registros`;
 
-  // Forzar scroll arriba para visualizar inmediatamente el registro recién guardado
-  const containerTable = casesTableBody.closest('.overflow-x-auto');
-  if (containerTable) {
-    containerTable.scrollTop = 0;
+  // Forzar el desplazamiento al inicio tanto del contenedor como de la ventana
+  const scrollContainer = casesTableBody.closest('.overflow-x-auto') || casesTableBody.closest('div');
+  if (scrollContainer) {
+    scrollContainer.scrollTop = 0;
   }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Guardar Caso con la fecha personalizada elegida
