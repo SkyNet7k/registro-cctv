@@ -20,6 +20,7 @@ const displayOperator = document.getElementById('displayOperator');
 const storeSelect = document.getElementById('storeSelect');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
+const caseDateInput = document.getElementById('caseDate'); // Referencia al campo de fecha
 const noveltyTypeSelect = document.getElementById('noveltyType');
 const noveltyDetailsInput = document.getElementById('noveltyDetails');
 const solutionTextInput = document.getElementById('solutionText');
@@ -36,7 +37,7 @@ const btnSetNow = document.getElementById('btnSetNow');
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   populateStoreDropdown();
-  setInitialTimes();
+  setInitialTimesAndDate();
   loadCasesFromServer();
 
   const savedOperator = localStorage.getItem('cctv_operator');
@@ -77,12 +78,17 @@ function populateStoreDropdown() {
   }
 }
 
-function setInitialTimes() {
+function setInitialTimesAndDate() {
   const now = new Date();
   if (endTimeInput) endTimeInput.value = now.toTimeString().substring(0, 5);
   
   const past = new Date(now.getTime() - 15 * 60000);
   if (startTimeInput) startTimeInput.value = past.toTimeString().substring(0, 5);
+
+  // Inicializar el campo de fecha con el día actual del sistema (YYYY-MM-DD)
+  if (caseDateInput) {
+    caseDateInput.value = now.toISOString().slice(0, 10);
+  }
 }
 
 if (btnSetNow) {
@@ -144,11 +150,12 @@ function renderCases() {
       const actionsText = c.actions ? c.actions : 'N/A';
       const actorsText = c.actors ? c.actors : '-';
 
-      // Formatear la fecha obtenida desde la base de datos (Ej: 14/10/2026)
+      // Formatear la fecha guardada en la base de datos
       const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'UTC'
       }) : 'Fecha s/n';
 
       tr.innerHTML = `
@@ -186,10 +193,14 @@ function renderCases() {
   if (tableCountInfo) tableCountInfo.textContent = `Mostrando ${filtered.length} de ${cases.length} registros`;
 }
 
-// Guardar Caso
+// Guardar Caso con la fecha personalizada elegida
 if (caseForm) {
   caseForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    const selectedDate = caseDateInput ? caseDateInput.value : new Date().toISOString().slice(0, 10);
+    const nowTime = new Date();
+    const fullIsoDate = new Date(`${selectedDate}T${String(nowTime.getHours()).padStart(2, '0')}:${String(nowTime.getMinutes()).padStart(2, '0')}:${String(nowTime.getSeconds()).padStart(2, '0')}`).toISOString();
 
     const caseData = {
       id: Date.now().toString(),
@@ -202,7 +213,7 @@ if (caseForm) {
       solution: solutionTextInput.value.trim(),
       actions: actionTextInput.value.trim(),
       actors: actorsTextInput.value.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: fullIsoDate // Fecha elegida por el operador
     };
 
     try {
@@ -229,7 +240,7 @@ function resetForm() {
     operatorNameInput.value = savedOperator;
     updateOperatorDisplay(savedOperator);
   }
-  setInitialTimes();
+  setInitialTimesAndDate();
 }
 
 if (searchInput) searchInput.addEventListener('input', renderCases);
@@ -244,7 +255,7 @@ function enviarReporteIndividual(id) {
   const actionsText = c.actions ? c.actions : 'N/A';
   const actorsText = c.actors ? c.actors : '-';
 
-  const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES') : '';
+  const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '';
 
   let text = `🔒 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
   if (fechaReporte) text += `📅 *Fecha:* ${fechaReporte}\n`;
