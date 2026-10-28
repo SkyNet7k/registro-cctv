@@ -65,6 +65,15 @@ document.addEventListener('DOMContentLoaded', () => {
   populateQueryStoreDropdown();
   populateBulkStoreDropdown();
   loadAdminCases();
+
+  // --- NUEVO: Enlace automático seguro para el botón de Borrado Selectivo ---
+  const btnPurge = document.querySelector('.bg-rose-600') || document.querySelector('button[class*="bg-rose-600"]');
+  if (btnPurge) {
+    btnPurge.addEventListener('click', (e) => {
+      e.preventDefault();
+      ejecutarBorradoSelectivo();
+    });
+  }
 });
 
 async function loadAdminCases() {
@@ -146,7 +155,7 @@ function populateBulkStoreDropdown() {
   }
 }
 
-// --- BORRADO SELECTIVO (NUEVO) ---
+// --- BORRADO SELECTIVO ---
 async function ejecutarBorradoSelectivo() {
   const fecha = document.getElementById('purgeDateInput').value;
   const store = document.getElementById('purgeStoreSelect').value;
