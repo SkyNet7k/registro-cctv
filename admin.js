@@ -472,7 +472,6 @@ function parseTxtReportWhatsApp(text) {
     const fullText = lines.join(' ');
     const lowerText = fullText.toLowerCase();
 
-    // FILTRO INTELIGENTE PARA DESCARTAR RUIDO, SALUDOS, LLEGADAS DE GERENTES Y TURNOS
     if (lowerText.includes('mensajes y las llamadas están cifrados') || 
         lowerText.includes('imagen omitida') || 
         lowerText.includes('sticker omitido') || 
@@ -528,7 +527,6 @@ function parseTxtReportWhatsApp(text) {
       operator = senderMatch[1].trim();
     }
 
-    // Extraer limpiamente el mensaje real de la novedad reportada en el chat
     const cleanedDetails = fullText.replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '').trim();
 
     cases.push({
@@ -798,7 +796,7 @@ window.closeShiftModal = function() {
   if (modal) modal.classList.add('hidden');
 };
 
-// --- RENDERIZAR TABLA PRINCIPAL ---
+// --- RENDERIZAR TABLA PRINCIPAL (Actualizado con Fecha) ---
 function renderAdminTable() {
   if (!adminTableBody) return;
   
@@ -821,9 +819,20 @@ function renderAdminTable() {
       const tr = document.createElement('tr');
       tr.className = "hover:bg-slate-750/50 transition border-b border-slate-700/40";
       
+      // Formatear la fecha almacenada para mostrarla en la tabla admin
+      const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC'
+      }) : 'Fecha s/n';
+
       tr.innerHTML = `
         <td class="px-4 py-3">
           <div class="font-medium text-slate-100">${c.store || 'N/A'}</div>
+          <div class="text-[10px] text-purple-400 mt-0.5">
+            <i class="fa-solid fa-calendar-days mr-1"></i>${fechaReporte}
+          </div>
           <div class="text-[10px] text-slate-400 mt-0.5">
             <i class="fa-regular fa-clock mr-1"></i>${c.startTime || '08:00'} - ${c.endTime || '16:00'}
           </div>
@@ -959,7 +968,7 @@ if (btnExportExcel) {
       "Hora Fin": c.endTime || '16:00',
       "Tipo de Novedad": c.novelty || 'General',
       "Solución / Observaciones": c.solution || '-',
-      "Fecha Registro": c.createdAt ? new Date(c.createdAt).toLocaleString() : ''
+      "Fecha Registro": c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : ''
     }));
 
     const workbook = XLSX.utils.book_new();
