@@ -47,7 +47,6 @@ if (!fs.existsSync(reportesDir)) {
 
 // --- CLASIFICACIÓN Y PARSEO INTELIGENTE DE HISTÓRICOS ---
 
-// Helper para convertir cualquier formato de hora (hh:mm, 12h o 24h) a minutos transcurridos en el día
 function parseHoraAMinutos(horaStr, defaultDate) {
   if (!horaStr) {
     if (!defaultDate) return 0;
@@ -71,11 +70,8 @@ function parseHoraAMinutos(horaStr, defaultDate) {
   return 0;
 }
 
-// Helper inteligente para agrupar registros existentes en la DB por Turno, Fecha y Operador
 function filtrarCasosPorTurno(casos, fechaStr, turno) {
-  const targetDateStr = fechaStr; // Formato YYYY-MM-DD
-  
-  // Calcular la fecha del día siguiente (para evaluar turno madrugada que cruza medianoche)
+  const targetDateStr = fechaStr;
   const [year, month, day] = fechaStr.split('-').map(Number);
   const targetDate = new Date(Date.UTC(year, month - 1, day));
   const nextDateObj = new Date(targetDate);
@@ -83,14 +79,11 @@ function filtrarCasosPorTurno(casos, fechaStr, turno) {
   const nextDateStr = nextDateObj.toISOString().slice(0, 10);
 
   return casos.filter(c => {
-    // 1. Determinar la fecha base del caso (createdAt o created_at)
     const fechaCreacionRaw = c.createdAt || c.created_at;
     if (!fechaCreacionRaw) return false;
 
     const caseDateObj = new Date(fechaCreacionRaw);
     const caseDateStr = caseDateObj.toISOString().slice(0, 10);
-
-    // 2. Extraer los minutos desde startTime o desde la fecha de creación ISO
     const minutosInicio = parseHoraAMinutos(c.startTime, fechaCreacionRaw);
 
     if (turno === 'dia') {
@@ -109,13 +102,11 @@ function filtrarCasosPorTurno(casos, fechaStr, turno) {
   });
 }
 
-// Función para generar Excel Ejecutivo con diseño profesional usando ExcelJS
 async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Sistema CCTV';
   workbook.created = new Date();
 
-  // Pestaña 1: Resumen de Turno
   const wsDashboard = workbook.addWorksheet('Resumen de Turno');
   wsDashboard.views = [{ showGridLines: true }];
 
@@ -131,7 +122,6 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
   wsDashboard.getCell('B3').value = casosTurno.length;
   wsDashboard.getCell('A3').font = { bold: true };
 
-  // Pestaña 2: Detalle de Novedades
   const wsDetalle = workbook.addWorksheet('Detalle de Novedades');
   wsDetalle.views = [{ showGridLines: true }];
 
@@ -177,12 +167,13 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
 
 // --- RUTAS DE API (REST API CON POSTGRESQL) ---
 
-// 1. Obtener todos los casos
+// 1. Obtener todos los casos (CORREGIDO: Incluyendo row.id)
 app.get('/api/casos', async (req, res) => {
   try {
-    const result = await pool.query('SELECT data, created_at FROM casos ORDER BY created_at DESC');
+    const result = await pool.query('SELECT id, data, created_at FROM casos ORDER BY created_at DESC');
     const cases = result.rows.map(row => {
       let caseObj = row.data || {};
+      caseObj.id = row.id; // Vincular el ID real de PostgreSQL
       if (!caseObj.createdAt) {
         caseObj.createdAt = row.created_at || new Date().toISOString();
       }
@@ -243,7 +234,7 @@ app.delete('/api/casos/:id', async (req, res) => {
   }
 });
 
-// 5. Borrado total o Borrado Selectivo con conversión local de zona horaria (ACTUALIZADO)
+// 5. Borrado total o Borrado Selectivo con conversión local de zona horaria
 app.delete('/api/casos', async (req, res) => {
   const { fecha, store, operator } = req.query;
   try {
@@ -260,7 +251,6 @@ app.delete('/api/casos', async (req, res) => {
       const rawDate = c.createdAt || row.created_at;
       if (!rawDate) return;
 
-      // Convertir la fecha a hora local del servidor para evitar desfases UTC
       const dateObj = new Date(rawDate);
       const year = dateObj.getFullYear();
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -269,12 +259,10 @@ app.delete('/api/casos', async (req, res) => {
 
       let match = true;
 
-      // 1. Validar Fecha Local
       if (fecha && caseLocalDate !== fecha) {
         match = false;
       }
 
-      // 2. Validar Sede (Insensible a mayúsculas/minúsculas y espacios)
       if (store && store !== 'ALL') {
         const storeDB = (c.store || '').trim().toLowerCase();
         const storeSearch = store.trim().toLowerCase();
@@ -283,7 +271,6 @@ app.delete('/api/casos', async (req, res) => {
         }
       }
 
-      // 3. Validar Operador (Coincidencia parcial)
       if (operator && operator.trim() !== '') {
         const opVal = (c.operator || '').toLowerCase();
         const searchOp = operator.toLowerCase();
@@ -340,10 +327,8 @@ app.post('/api/reportes/turno', async (req, res) => {
   }
 });
 
-// Servir archivos estáticos de reportes generados
 app.use('/reportes', express.static(reportesDir));
 
-// Endpoint WhatsApp (Destino predeterminado: +58 412-6615457)
 app.post('/api/enviar-whatsapp', async (req, res) => {
   const { mensaje, numero } = req.body;
   const destino = numero || "584126615457";
@@ -371,8 +356,6 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
   }
 });
 
-// --- TAREAS PROGRAMADAS AUTOMÁTICAS (CRON JOBS DE ENVIOS DE CORTE) ---
-
 async function ejecutarCorteYNotificar(turnoNombre) {
   try {
     const hoyStr = new Date().toISOString().slice(0, 10);
@@ -399,27 +382,14 @@ async function ejecutarCorteYNotificar(turnoNombre) {
   }
 }
 
-cron.schedule('0 18 * * *', () => {
-  console.log('⏰ Ejecutando cron job: Turno Día (18:00)');
-  ejecutarCorteYNotificar('dia');
-});
+cron.schedule('0 18 * * *', () => ejecutarCorteYNotificar('dia'));
+cron.schedule('0 22 * * *', () => ejecutarCorteYNotificar('noche'));
+cron.schedule('0 7 * * *', () => ejecutarCorteYNotificar('madrugada'));
 
-cron.schedule('0 22 * * *', () => {
-  console.log('⏰ Ejecutando cron job: Turno Noche (22:00)');
-  ejecutarCorteYNotificar('noche');
-});
-
-cron.schedule('0 7 * * *', () => {
-  console.log('⏰ Ejecutando cron job: Turno Madrugada (07:00)');
-  ejecutarCorteYNotificar('madrugada');
-});
-
-// Servir frontend
 app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`===================================================`);
   console.log(`🚀 Servidor CCTV iniciado con PostgreSQL`);
