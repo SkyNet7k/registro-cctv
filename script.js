@@ -20,7 +20,7 @@ const displayOperator = document.getElementById('displayOperator');
 const storeSelect = document.getElementById('storeSelect');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
-const caseDateInput = document.getElementById('caseDate'); // Referencia al campo de fecha
+const caseDateInput = document.getElementById('caseDate');
 const noveltyTypeSelect = document.getElementById('noveltyType');
 const noveltyDetailsInput = document.getElementById('noveltyDetails');
 const solutionTextInput = document.getElementById('solutionText');
@@ -85,7 +85,6 @@ function setInitialTimesAndDate() {
   const past = new Date(now.getTime() - 15 * 60000);
   if (startTimeInput) startTimeInput.value = past.toTimeString().substring(0, 5);
 
-  // Inicializar el campo de fecha con el día actual del sistema (YYYY-MM-DD)
   if (caseDateInput) {
     caseDateInput.value = now.toISOString().slice(0, 10);
   }
@@ -98,7 +97,6 @@ if (btnSetNow) {
   });
 }
 
-// --- API CONEXIÓN A NODE.JS SERVER ---
 async function loadCasesFromServer() {
   try {
     const res = await fetch('/api/casos');
@@ -111,7 +109,6 @@ async function loadCasesFromServer() {
   }
 }
 
-// Renderizar tabla con fecha extraída de la DB y botón de WhatsApp individual
 function renderCases() {
   if (!casesTableBody) return;
   
@@ -150,13 +147,8 @@ function renderCases() {
       const actionsText = c.actions ? c.actions : 'N/A';
       const actorsText = c.actors ? c.actors : '-';
 
-      // Formatear la fecha guardada en la base de datos
-      const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        timeZone: 'UTC'
-      }) : 'Fecha s/n';
+      // Extracción limpia de fecha local sin corrimientos UTC
+      const fechaReporte = c.createdAt ? c.createdAt.slice(0, 10).split('-').reverse().join('/') : 'Fecha s/n';
 
       tr.innerHTML = `
         <td class="px-4 py-3 align-top">
@@ -192,7 +184,6 @@ function renderCases() {
 
   if (tableCountInfo) tableCountInfo.textContent = `Mostrando ${filtered.length} de ${cases.length} registros`;
 
-  // Forzar el desplazamiento al inicio tanto del contenedor como de la ventana
   const scrollContainer = casesTableBody.closest('.overflow-x-auto') || casesTableBody.closest('div');
   if (scrollContainer) {
     scrollContainer.scrollTop = 0;
@@ -200,14 +191,19 @@ function renderCases() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Guardar Caso con la fecha personalizada elegida
+// CORRECCIÓN DE FECHA LOCAL AL GUARDAR
 if (caseForm) {
   caseForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const selectedDate = caseDateInput ? caseDateInput.value : new Date().toISOString().slice(0, 10);
     const nowTime = new Date();
-    const fullIsoDate = new Date(`${selectedDate}T${String(nowTime.getHours()).padStart(2, '0')}:${String(nowTime.getMinutes()).padStart(2, '0')}:${String(nowTime.getSeconds()).padStart(2, '0')}`).toISOString();
+    const hours = String(nowTime.getHours()).padStart(2, '0');
+    const minutes = String(nowTime.getMinutes()).padStart(2, '0');
+    const seconds = String(nowTime.getSeconds()).padStart(2, '0');
+
+    // Asignación estricta de hora local sin conversiones UTC
+    const localIsoDate = `${selectedDate}T${hours}:${minutes}:${seconds}`;
 
     const caseData = {
       id: Date.now().toString(),
@@ -220,7 +216,7 @@ if (caseForm) {
       solution: solutionTextInput.value.trim(),
       actions: actionTextInput.value.trim(),
       actors: actorsTextInput.value.trim(),
-      createdAt: fullIsoDate // Fecha elegida por el operador
+      createdAt: localIsoDate 
     };
 
     try {
@@ -252,7 +248,6 @@ function resetForm() {
 
 if (searchInput) searchInput.addEventListener('input', renderCases);
 
-// Función exclusiva para enviar únicamente el reporte seleccionado por ID
 function enviarReporteIndividual(id) {
   const c = cases.find(item => item.id === id);
   if (!c) return alert('No se encontró el registro seleccionado.');
@@ -262,7 +257,7 @@ function enviarReporteIndividual(id) {
   const actionsText = c.actions ? c.actions : 'N/A';
   const actorsText = c.actors ? c.actors : '-';
 
-  const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '';
+  const fechaReporte = c.createdAt ? c.createdAt.slice(0, 10).split('-').reverse().join('/') : '';
 
   let text = `🔒 *DPTO. DE SEGURIDAD ELECTRÓNICA*\n===================================\n\n`;
   if (fechaReporte) text += `📅 *Fecha:* ${fechaReporte}\n`;

@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
     queryDateInput.value = todayStr;
   }
 
-  // Inicializar fecha y selector de sedes para el panel de borrado selectivo
   const purgeDateInput = document.getElementById('purgeDateInput');
   if (purgeDateInput) purgeDateInput.value = todayStr;
 
@@ -66,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
   populateBulkStoreDropdown();
   loadAdminCases();
 
-  // --- NUEVO: Enlace automático seguro para el botón de Borrado Selectivo ---
   const btnPurge = document.querySelector('.bg-rose-600') || document.querySelector('button[class*="bg-rose-600"]');
   if (btnPurge) {
     btnPurge.addEventListener('click', (e) => {
@@ -155,7 +153,6 @@ function populateBulkStoreDropdown() {
   }
 }
 
-// --- BORRADO SELECTIVO ---
 async function ejecutarBorradoSelectivo() {
   const fecha = document.getElementById('purgeDateInput').value;
   const store = document.getElementById('purgeStoreSelect').value;
@@ -193,7 +190,7 @@ async function ejecutarBorradoSelectivo() {
   }
 }
 
-// --- CONSULTA AVANZADA POR TIENDA, FECHA, TURNO Y NOVEDAD ---
+// --- CONSULTA AVANZADA CON FECHA LOCAL EXACTA ---
 function ejecutarConsultaAvanzada() {
   const fechaSeleccionada = document.getElementById('queryDateInput').value;
   const tiendaSeleccionada = document.getElementById('queryStoreSelect').value;
@@ -211,7 +208,8 @@ function ejecutarConsultaAvanzada() {
   let casosFiltrados = adminCases.filter(c => {
     const fechaCreacion = c.createdAt || c.created_at;
     if (!fechaCreacion) return false;
-    const caseDateStr = new Date(fechaCreacion).toISOString().slice(0, 10);
+    // Extracción limpia de la fecha local sin corrimiento UTC
+    const caseDateStr = fechaCreacion.slice(0, 10);
     return caseDateStr === fechaSeleccionada;
   });
 
@@ -276,8 +274,7 @@ function filtrarCasosPorTurnoLocal(casos, fechaStr, turno) {
     const fechaCreacionRaw = c.createdAt || c.created_at;
     if (!fechaCreacionRaw) return false;
 
-    const caseDateObj = new Date(fechaCreacionRaw);
-    const caseDateStr = caseDateObj.toISOString().slice(0, 10);
+    const caseDateStr = fechaCreacionRaw.slice(0, 10);
     const minutosInicio = parseHoraAMinutosLocal(c.startTime, fechaCreacionRaw);
 
     if (turno === 'dia') {
@@ -310,7 +307,6 @@ function parseHoraAMinutosLocal(horaStr, defaultDate) {
   return 0;
 }
 
-// --- IMPORTACIÓN MASIVA DESDE TXT CON MODAL DE VISTA PREVIA ---
 if (txtFileInput) {
   txtFileInput.addEventListener('change', async (e) => {
     const files = e.target.files;
@@ -529,6 +525,10 @@ function parseTxtReportWhatsApp(text) {
 
     const cleanedDetails = fullText.replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '').trim();
 
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
     cases.push({
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       operator: operator,
@@ -538,14 +538,13 @@ function parseTxtReportWhatsApp(text) {
       novelty: category,
       details: cleanedDetails,
       solution: cleanedDetails,
-      createdAt: new Date().toISOString()
+      createdAt: `${todayStr}T${timeStr}`
     });
   });
 
   return cases;
 }
 
-// --- ACTUALIZAR KPIS Y GRÁFICOS GENERALES ---
 function updateDashboard() {
   const total = adminCases.length;
   if (kpiTotalCases) kpiTotalCases.textContent = total;
@@ -648,7 +647,6 @@ function renderCharts(noveltyCounts, storeCounts) {
   });
 }
 
-// --- VISTA PREVIA Y CORTES POR TURNO ---
 async function previsualizarTurno(turno) {
   const fecha = shiftDateInput ? shiftDateInput.value : new Date().toISOString().slice(0, 10);
   try {
@@ -796,7 +794,6 @@ window.closeShiftModal = function() {
   if (modal) modal.classList.add('hidden');
 };
 
-// --- RENDERIZAR TABLA PRINCIPAL (Actualizado con Fecha) ---
 function renderAdminTable() {
   if (!adminTableBody) return;
   
@@ -819,13 +816,7 @@ function renderAdminTable() {
       const tr = document.createElement('tr');
       tr.className = "hover:bg-slate-750/50 transition border-b border-slate-700/40";
       
-      // Formatear la fecha almacenada para mostrarla en la tabla admin
-      const fechaReporte = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        timeZone: 'UTC'
-      }) : 'Fecha s/n';
+      const fechaReporte = c.createdAt ? c.createdAt.slice(0, 10).split('-').reverse().join('/') : 'Fecha s/n';
 
       tr.innerHTML = `
         <td class="px-4 py-3">
@@ -866,7 +857,6 @@ function renderAdminTable() {
 
 if (adminSearchInput) adminSearchInput.addEventListener('input', renderAdminTable);
 
-// --- MODAL DE EDICIÓN CRUD ---
 window.openEditModal = function(id) {
   const c = adminCases.find(item => item.id === id);
   if (!c) return;
@@ -952,7 +942,6 @@ if (btnClearAll) {
   });
 }
 
-// --- EXPORTAR A EXCEL GLOBAL ---
 if (btnExportExcel) {
   btnExportExcel.addEventListener('click', () => {
     if (adminCases.length === 0) {
@@ -968,7 +957,7 @@ if (btnExportExcel) {
       "Hora Fin": c.endTime || '16:00',
       "Tipo de Novedad": c.novelty || 'General',
       "Solución / Observaciones": c.solution || '-',
-      "Fecha Registro": c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : ''
+      "Fecha Registro": c.createdAt ? c.createdAt.slice(0, 10).split('-').reverse().join('/') : ''
     }));
 
     const workbook = XLSX.utils.book_new();
