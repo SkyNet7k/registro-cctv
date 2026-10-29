@@ -79,6 +79,14 @@ async function loadAdminCases() {
     const res = await fetch('/api/casos');
     if (res.ok) {
       adminCases = await res.json();
+      
+      // ORDENAMIENTO GARANTIZADO: Los más nuevos primero
+      adminCases.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+      });
+
       updateDashboard();
       renderAdminTable();
     }
@@ -208,7 +216,6 @@ function ejecutarConsultaAvanzada() {
   let casosFiltrados = adminCases.filter(c => {
     const fechaCreacion = c.createdAt || c.created_at;
     if (!fechaCreacion) return false;
-    // Extracción limpia de la fecha local sin corrimiento UTC
     const caseDateStr = fechaCreacion.slice(0, 10);
     return caseDateStr === fechaSeleccionada;
   });
