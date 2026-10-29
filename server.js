@@ -86,8 +86,8 @@ function filtrarCasosPorTurno(casos, fechaStr, turno) {
     const fechaCreacionRaw = c.createdAt || c.created_at;
     if (!fechaCreacionRaw) return false;
 
-    const caseDateObj = new Date(fechaCreacionRaw);
-    const caseDateStr = caseDateObj.toISOString().slice(0, 10);
+    // Comparación limpia por texto local (YYYY-MM-DD)
+    const caseDateStr = String(fechaCreacionRaw).slice(0, 10);
     const minutosInicio = parseHoraAMinutos(c.startTime, fechaCreacionRaw);
 
     if (turno === 'A' || turno === 'dia') {
@@ -150,6 +150,9 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
   headerRow.height = 25;
 
   casosTurno.forEach((c, idx) => {
+    const rawDate = c.createdAt || c.created_at || '';
+    const formattedDate = rawDate ? rawDate.replace('T', ' ').slice(0, 19) : '';
+
     const row = wsDetalle.addRow({
       index: idx + 1,
       store: c.store || 'N/A',
@@ -161,7 +164,7 @@ async function generarExcelTurno(casosTurno, nombreTurno, fechaStr) {
       solution: c.solution || '-',
       actions: c.actions || '-',
       actors: c.actors || '-',
-      createdAt: (c.createdAt || c.created_at) ? new Date(c.createdAt || c.created_at).toLocaleString() : ''
+      createdAt: formattedDate
     });
 
     if (idx % 2 === 1) {
@@ -188,6 +191,14 @@ app.get('/api/casos', async (req, res) => {
       }
       return caseObj;
     });
+
+    // Oñemohenda pyahuvégui yvyguotyo
+    cases.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB - dateA;
+    });
+
     res.json(cases);
   } catch (err) {
     console.error('Error al obtener casos:', err);
@@ -197,22 +208,35 @@ app.get('/api/casos', async (req, res) => {
 
 app.post('/api/casos', async (req, res) => {
   const newCase = req.body;
+  console.log("📥 Datos recibidos para guardar:", newCase);
+
   if (!newCase || !newCase.store || !newCase.novelty) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
   try {
     newCase.id = newCase.id || Date.now().toString();
-    newCase.createdAt = newCase.createdAt || new Date().toISOString();
+    newCase.createdAt = newCase.createdAt || new Date().toISOString().slice(0, 19);
+
     const query = `
       INSERT INTO casos (id, store, novelty, created_at, data)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (id) 
-      DO UPDATE SET store = EXCLUDED.store, novelty = EXCLUDED.novelty, data = EXCLUDED.data;
+      DO UPDATE SET store = EXCLUDED.store, novelty = EXCLUDED.novelty, created_at = EXCLUDED.created_at, data = EXCLUDED.data
+      RETURNING *;
     `;
-    await pool.query(query, [newCase.id, newCase.store, newCase.novelty, newCase.createdAt, JSON.stringify(newCase)]);
+    
+    const result = await pool.query(query, [
+      newCase.id, 
+      newCase.store, 
+      newCase.novelty, 
+      newCase.createdAt, 
+      JSON.stringify(newCase)
+    ]);
+
+    console.log("✅ Caso guardado exitosamente en PostgreSQL ID:", newCase.id);
     res.status(201).json({ status: 'ok', data: newCase });
   } catch (err) {
-    console.error('Error al guardar caso:', err);
+    console.error('❌ Error al guardar caso en PostgreSQL:', err);
     res.status(500).json({ error: 'Error al guardar en la base de datos' });
   }
 });
@@ -221,8 +245,9 @@ app.put('/api/casos/:id', async (req, res) => {
   const { id } = req.params;
   const updatedCase = req.body;
   try {
-    const query = `UPDATE casos SET store = $1, novelty = $2, data = $3 WHERE id = $4;`;
-    await pool.query(query, [updatedCase.store, updatedCase.novelty, JSON.stringify(updatedCase), id]);
+    const createdAt = updatedCase.createdAt || new Date().toISOString().slice(0, 19);
+    const query = `UPDATE casos SET store = $1, novelty = $2, created_at = $3, data = $4 WHERE id = $5;`;
+    await pool.query(query, [updatedCase.store, updatedCase.novelty, createdAt, JSON.stringify(updatedCase), id]);
     res.json({ status: 'ok', message: 'Caso actualizado con éxito' });
   } catch (err) {
     console.error('Error al actualizar caso:', err);
@@ -256,11 +281,7 @@ app.delete('/api/casos', async (req, res) => {
       const rawDate = c.createdAt || row.created_at;
       if (!rawDate) return;
 
-      const dateObj = new Date(rawDate);
-      const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      const caseLocalDate = `${year}-${month}-${day}`;
+      const caseLocalDate = String(rawDate).slice(0, 10);
 
       let match = true;
       if (fecha && caseLocalDate !== fecha) match = false;
