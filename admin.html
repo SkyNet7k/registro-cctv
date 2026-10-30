@@ -280,7 +280,7 @@
 
   </main>
 
-  <!-- Modal de Configuración de Exportación Excel (NUEVO) -->
+  <!-- Modal de Configuración de Exportación Excel (RANGO DE FECHAS) -->
   <div id="exportExcelModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-700 pb-3">
@@ -300,11 +300,17 @@
           </select>
         </div>
 
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Filtrar por Fecha (Opcional):</label>
-          <input type="date" id="exportDateInput" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-          <p class="text-[10px] text-slate-500 mt-1">Si dejas la fecha en blanco, se exportarán todos los registros históricos de la sede seleccionada.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Fecha de Inicio:</label>
+            <input type="date" id="exportStartDateInput" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Fecha Final:</label>
+            <input type="date" id="exportEndDateInput" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
         </div>
+        <p class="text-[10px] text-slate-500">Si dejas las fechas en blanco, se exportarán todos los registros históricos de la sede seleccionada.</p>
       </div>
 
       <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-700">

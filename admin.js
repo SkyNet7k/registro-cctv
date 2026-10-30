@@ -948,11 +948,12 @@ if (btnClearAll) {
   });
 }
 
-// --- NUEVAS FUNCIONES PARA EL MODAL DE EXPORTACIÓN EXCEL ---
+// --- NUEVAS FUNCIONES PARA EL MODAL DE EXPORTACIÓN EXCEL (CON RANGO DE FECHAS) ---
 
 function abrirModalExportarExcel() {
   const modal = document.getElementById('exportExcelModal');
-  const dateInput = document.getElementById('exportDateInput');
+  const startDateInput = document.getElementById('exportStartDateInput');
+  const endDateInput = document.getElementById('exportEndDateInput');
   const storeSelect = document.getElementById('exportStoreSelect');
 
   if (!modal) return;
@@ -972,9 +973,9 @@ function abrirModalExportarExcel() {
     }
   }
 
-  if (dateInput && !dateInput.value) {
-    dateInput.value = ''; 
-  }
+  // Limpiar/Iniciar campos de fecha
+  if (startDateInput && !startDateInput.value) startDateInput.value = '';
+  if (endDateInput && !endDateInput.value) endDateInput.value = '';
 
   modal.classList.remove('hidden');
 }
@@ -986,32 +987,41 @@ function cerrarModalExportarExcel() {
 
 function ejecutarExportacionExcelPersonalizada() {
   const storeFilter = document.getElementById('exportStoreSelect').value;
-  const dateFilter = document.getElementById('exportDateInput').value;
+  const startDateFilter = document.getElementById('exportStartDateInput').value;
+  const endDateFilter = document.getElementById('exportEndDateInput').value;
 
   if (adminCases.length === 0) {
     alert('No hay registros en la base de datos para exportar.');
     return;
   }
 
-  // Filtrar los casos según la sede y fecha seleccionadas en el modal
+  // Filtrar los casos según la sede y el rango de fechas seleccionado
   let casosAExportar = adminCases.filter(c => {
     let cumpleTienda = true;
-    let cumpleFecha = true;
+    let cumpleRangoFecha = true;
 
     if (storeFilter !== 'ALL') {
       cumpleTienda = (c.store || '').trim().toLowerCase() === storeFilter.trim().toLowerCase();
     }
 
-    if (dateFilter) {
-      const caseDate = (c.createdAt || c.created_at || '').slice(0, 10);
-      cumpleFecha = caseDate === dateFilter;
+    const caseDate = (c.createdAt || c.created_at || '').slice(0, 10);
+
+    if (caseDate) {
+      if (startDateFilter && caseDate < startDateFilter) {
+        cumpleRangoFecha = false;
+      }
+      if (endDateFilter && caseDate > endDateFilter) {
+        cumpleRangoFecha = false;
+      }
+    } else if (startDateFilter || endDateFilter) {
+      cumpleRangoFecha = false;
     }
 
-    return cumpleTienda && cumpleFecha;
+    return cumpleTienda && cumpleRangoFecha;
   });
 
   if (casosAExportar.length === 0) {
-    alert('No hay registros que coincidan con los filtros seleccionados para exportar.');
+    alert('No hay registros que coincidan con la sede y el rango de fechas seleccionado.');
     return;
   }
 
@@ -1034,7 +1044,9 @@ function ejecutarExportacionExcelPersonalizada() {
   // Nombrar el archivo dinámicamente según los filtros elegidos
   let nombreArchivo = `Reporte_CCTV`;
   if (storeFilter !== 'ALL') nombreArchivo += `_${storeFilter.replace(/\s+/g, '_')}`;
-  if (dateFilter) nombreArchivo += `_${dateFilter}`;
+  if (startDateFilter || endDateFilter) {
+    nombreArchivo += `_${startDateFilter || 'inicio'}_a_${endDateFilter || 'fin'}`;
+  }
   nombreArchivo += `.xlsx`;
 
   XLSX.writeFile(workbook, nombreArchivo);
