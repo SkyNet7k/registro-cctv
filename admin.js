@@ -21,7 +21,6 @@ const adminTableBody = document.getElementById('adminTableBody');
 const adminEmptyState = document.getElementById('adminEmptyState');
 const adminSearchInput = document.getElementById('adminSearchInput');
 const adminTableCount = document.getElementById('adminTableCount');
-const btnExportExcel = document.getElementById('btnExportExcel');
 const btnClearAll = document.getElementById('btnClearAll');
 const txtFileInput = document.getElementById('txtFileInput');
 const shiftDateInput = document.getElementById('shiftDateInput');
@@ -949,27 +948,95 @@ if (btnClearAll) {
   });
 }
 
-if (btnExportExcel) {
-  btnExportExcel.addEventListener('click', () => {
-    if (adminCases.length === 0) {
-      alert('No hay registros para exportar.');
-      return;
+// --- NUEVAS FUNCIONES PARA EL MODAL DE EXPORTACIÓN EXCEL ---
+
+function abrirModalExportarExcel() {
+  const modal = document.getElementById('exportExcelModal');
+  const dateInput = document.getElementById('exportDateInput');
+  const storeSelect = document.getElementById('exportStoreSelect');
+
+  if (!modal) return;
+
+  // Poblar el selector de tiendas si tiene solo la opción por defecto
+  if (storeSelect && storeSelect.options.length <= 1) {
+    for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
+      const optGroup = document.createElement('optgroup');
+      optGroup.label = groupName;
+      storeList.forEach(store => {
+        const option = document.createElement('option');
+        option.value = store;
+        option.textContent = store;
+        optGroup.appendChild(option);
+      });
+      storeSelect.appendChild(optGroup);
+    }
+  }
+
+  if (dateInput && !dateInput.value) {
+    dateInput.value = ''; 
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function cerrarModalExportarExcel() {
+  const modal = document.getElementById('exportExcelModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function ejecutarExportacionExcelPersonalizada() {
+  const storeFilter = document.getElementById('exportStoreSelect').value;
+  const dateFilter = document.getElementById('exportDateInput').value;
+
+  if (adminCases.length === 0) {
+    alert('No hay registros en la base de datos para exportar.');
+    return;
+  }
+
+  // Filtrar los casos según la sede y fecha seleccionadas en el modal
+  let casosAExportar = adminCases.filter(c => {
+    let cumpleTienda = true;
+    let cumpleFecha = true;
+
+    if (storeFilter !== 'ALL') {
+      cumpleTienda = (c.store || '').trim().toLowerCase() === storeFilter.trim().toLowerCase();
     }
 
-    const dataFormatted = adminCases.map((c, index) => ({
-      "N°": index + 1,
-      "Tienda / Sucursal": c.store || 'N/A',
-      "Operador CCTV": c.operator || 'Operador',
-      "Hora Inicio": c.startTime || '08:00',
-      "Hora Fin": c.endTime || '16:00',
-      "Tipo de Novedad": c.novelty || 'General',
-      "Solución / Observaciones": c.solution || '-',
-      "Fecha Registro": c.createdAt ? c.createdAt.slice(0, 10).split('-').reverse().join('/') : ''
-    }));
+    if (dateFilter) {
+      const caseDate = (c.createdAt || c.created_at || '').slice(0, 10);
+      cumpleFecha = caseDate === dateFilter;
+    }
 
-    const workbook = XLSX.utils.book_new();
-    const wsDetails = XLSX.utils.json_to_sheet(dataFormatted);
-    XLSX.utils.book_append_sheet(workbook, wsDetails, "Novedades CCTV");
-    XLSX.writeFile(workbook, `Reporte_Ejecutivo_CCTV_${new Date().toISOString().slice(0,10)}.xlsx`);
+    return cumpleTienda && cumpleFecha;
   });
+
+  if (casosAExportar.length === 0) {
+    alert('No hay registros que coincidan con los filtros seleccionados para exportar.');
+    return;
+  }
+
+  // Mapear los datos limpios para la hoja de Excel
+  const dataFormatted = casosAExportar.map((c, index) => ({
+    "N°": index + 1,
+    "Tienda / Sucursal": c.store || 'N/A',
+    "Operador CCTV": c.operator || 'Operador',
+    "Hora Inicio": c.startTime || '08:00',
+    "Hora Fin": c.endTime || '16:00',
+    "Tipo de Novedad": c.novelty || 'General',
+    "Solución / Observaciones": c.solution || '-',
+    "Fecha Registro": c.createdAt ? c.createdAt.slice(0, 10).split('-').reverse().join('/') : ''
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  const wsDetails = XLSX.utils.json_to_sheet(dataFormatted);
+  XLSX.utils.book_append_sheet(workbook, wsDetails, "Novedades CCTV");
+
+  // Nombrar el archivo dinámicamente según los filtros elegidos
+  let nombreArchivo = `Reporte_CCTV`;
+  if (storeFilter !== 'ALL') nombreArchivo += `_${storeFilter.replace(/\s+/g, '_')}`;
+  if (dateFilter) nombreArchivo += `_${dateFilter}`;
+  nombreArchivo += `.xlsx`;
+
+  XLSX.writeFile(workbook, nombreArchivo);
+  cerrarModalExportarExcel();
 }
