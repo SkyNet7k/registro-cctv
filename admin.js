@@ -958,7 +958,6 @@ function abrirModalExportarExcel() {
 
   if (!modal) return;
 
-  // Poblar el selector de tiendas si tiene solo la opción por defecto
   if (storeSelect && storeSelect.options.length <= 1) {
     for (const [groupName, storeList] of Object.entries(STORE_GROUPS)) {
       const optGroup = document.createElement('optgroup');
@@ -973,7 +972,6 @@ function abrirModalExportarExcel() {
     }
   }
 
-  // Limpiar/Iniciar campos de fecha
   if (startDateInput && !startDateInput.value) startDateInput.value = '';
   if (endDateInput && !endDateInput.value) endDateInput.value = '';
 
@@ -995,7 +993,6 @@ function ejecutarExportacionExcelPersonalizada() {
     return;
   }
 
-  // Filtrar los casos según la sede y el rango de fechas seleccionado
   let casosAExportar = adminCases.filter(c => {
     let cumpleTienda = true;
     let cumpleRangoFecha = true;
@@ -1025,7 +1022,6 @@ function ejecutarExportacionExcelPersonalizada() {
     return;
   }
 
-  // Mapear los datos limpios para la hoja de Excel
   const dataFormatted = casosAExportar.map((c, index) => ({
     "N°": index + 1,
     "Tienda / Sucursal": c.store || 'N/A',
@@ -1041,7 +1037,6 @@ function ejecutarExportacionExcelPersonalizada() {
   const wsDetails = XLSX.utils.json_to_sheet(dataFormatted);
   XLSX.utils.book_append_sheet(workbook, wsDetails, "Novedades CCTV");
 
-  // Nombrar el archivo dinámicamente según los filtros elegidos
   let nombreArchivo = `Reporte_CCTV`;
   if (storeFilter !== 'ALL') nombreArchivo += `_${storeFilter.replace(/\s+/g, '_')}`;
   if (startDateFilter || endDateFilter) {

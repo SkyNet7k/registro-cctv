@@ -14,7 +14,7 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Inicializar la tabla en la base de datos si no existe
+// Inicializar la tabla en la base de datos e inyectar historial automáticamente
 async function initDB() {
   try {
     await pool.query(`
@@ -27,8 +27,39 @@ async function initDB() {
       );
     `);
     console.log("📦 Base de datos PostgreSQL conectada y tabla 'casos' lista.");
+
+    // --- AUTOCARGA AUTOMÁTICA DE REGISTROS HISTÓRICOS ---
+    const archivoCasos = path.join(__dirname, 'casos_2.json');
+    if (fs.existsSync(archivoCasos)) {
+      const jsonData = JSON.parse(fs.readFileSync(archivoCasos, 'utf-8'));
+      let count = 0;
+      
+      for (const item of jsonData) {
+        const id = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        const store = item.store || 'Sucursal General';
+        const novelty = item.novelty || 'General';
+        const createdAt = item.createdAt || item.created_at || new Date().toISOString();
+
+        await pool.query(`
+          INSERT INTO casos (id, store, novelty, created_at, data)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (id) 
+          DO UPDATE SET store = EXCLUDED.store, novelty = EXCLUDED.novelty, created_at = EXCLUDED.created_at, data = EXCLUDED.data;
+        `, [
+          id,
+          store,
+          novelty,
+          createdAt,
+          JSON.stringify(item)
+        ]);
+        count++;
+      }
+      console.log(`📥 Autocarga completada: ${count} registros sincronizados desde casos_2.json.`);
+    } else {
+      console.log("ℹ️ No se encontró el archivo casos_2.json local, operando con la BD actual.");
+    }
   } catch (err) {
-    console.error("Error al inicializar la base de datos PostgreSQL:", err);
+    console.error("❌ Error al inicializar o sincronizar la base de datos PostgreSQL:", err);
   }
 }
 
@@ -70,10 +101,6 @@ function parseHoraAMinutos(horaStr, defaultDate) {
   return 0;
 }
 
-// Filtrado adaptado a tus horarios exactos:
-// Turno A: 07:00 AM (420 min) a 06:00 PM (1080 min)
-// Turno B: 06:00 PM (1080 min) a 10:00 PM (1320 min)
-// Turno Nocturno: 10:00 PM (1320 min) a 07:00 AM (420 min del día siguiente)
 function filtrarCasosPorTurno(casos, fechaStr, turno) {
   const targetDateStr = fechaStr;
   const [year, month, day] = fechaStr.split('-').map(Number);
@@ -86,7 +113,6 @@ function filtrarCasosPorTurno(casos, fechaStr, turno) {
     const fechaCreacionRaw = c.createdAt || c.created_at;
     if (!fechaCreacionRaw) return false;
 
-    // Comparación limpia por texto local (YYYY-MM-DD)
     const caseDateStr = String(fechaCreacionRaw).slice(0, 10);
     const minutosInicio = parseHoraAMinutos(c.startTime, fechaCreacionRaw);
 
@@ -192,7 +218,6 @@ app.get('/api/casos', async (req, res) => {
       return caseObj;
     });
 
-    // Oñemohenda pyahuvégui yvyguotyo
     cases.sort((a, b) => {
       const dateA = new Date(a.createdAt || 0);
       const dateB = new Date(b.createdAt || 0);
@@ -208,8 +233,6 @@ app.get('/api/casos', async (req, res) => {
 
 app.post('/api/casos', async (req, res) => {
   const newCase = req.body;
-  console.log("📥 Datos recibidos para guardar:", newCase);
-
   if (!newCase || !newCase.store || !newCase.novelty) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
@@ -225,7 +248,7 @@ app.post('/api/casos', async (req, res) => {
       RETURNING *;
     `;
     
-    const result = await pool.query(query, [
+    await pool.query(query, [
       newCase.id, 
       newCase.store, 
       newCase.novelty, 
@@ -233,7 +256,6 @@ app.post('/api/casos', async (req, res) => {
       JSON.stringify(newCase)
     ]);
 
-    console.log("✅ Caso guardado exitosamente en PostgreSQL ID:", newCase.id);
     res.status(201).json({ status: 'ok', data: newCase });
   } catch (err) {
     console.error('❌ Error al guardar caso en PostgreSQL:', err);
@@ -335,7 +357,7 @@ app.post('/api/reportes/turno', async (req, res) => {
 
 app.use('/reportes', express.static(reportesDir));
 
-// --- ENVIAR CORTE AUTOMÁTICO DE WHATSAPP CON DESGLOSE DE CASOS ---
+// --- CRON JOBS DE WHATSAPP ---
 async function ejecutarCorteYNotificar(turnoNombre) {
   try {
     const hoyStr = new Date().toISOString().slice(0, 10);
@@ -343,10 +365,8 @@ async function ejecutarCorteYNotificar(turnoNombre) {
     const allCases = result.rows.map(r => r.data || {});
     const casosTurno = filtrarCasosPorTurno(allCases, hoyStr, turnoNombre);
 
-    // Generar archivo Excel de respaldo
     await generarExcelTurno(casosTurno, turnoNombre, hoyStr);
 
-    // Armar el mensaje para WhatsApp con el resumen completo de novedades
     let mensaje = `🚨 *CORTE AUTOMÁTICO DE TURNO ${turnoNombre.toUpperCase()}* 🚨\n`;
     mensaje += `📅 *Fecha:* ${hoyStr}\n`;
     mensaje += `📌 *Total de Novedades Registradas:* ${casosTurno.length}\n`;
@@ -385,15 +405,9 @@ async function ejecutarCorteYNotificar(turnoNombre) {
   }
 }
 
-// --- PROGRAMACIÓN DE CRON JOBS (3 TURNOS) ---
-// 1. Cierre Turno A (7:00 AM - 6:00 PM) -> Se ejecuta a las 18:00 (6:00 PM)
 cron.schedule('0 18 * * *', () => ejecutarCorteYNotificar('A'));
-
-// 2. Cierre Turno B (6:00 PM - 10:00 PM) -> Se ejecuta a las 22:00 (10:00 PM)
 cron.schedule('0 22 * * *', () => ejecutarCorteYNotificar('B'));
-
-// 3. Cierre Turno Nocturno (10:00 PM - 7:00 AM) -> Se ejecuta a las 07:00 AM
-cron.schedule('0 7 * * *', () => ejecutarCorteYNotificar('nocturno'));
+cron.schedule('0 7 * * *', () => ejecutarCortonYNotificar('nocturno'));
 
 app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
