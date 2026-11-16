@@ -64,6 +64,37 @@ document.addEventListener('DOMContentLoaded', () => {
   populateBulkStoreDropdown();
   loadAdminCases();
 
+  // --- MANEJADOR PARA EL FORMULARIO DE IMPORTACIÓN DE RESPALDO DB ---
+  const formImportarDb = document.getElementById('formImportarDb');
+  if (formImportarDb) {
+    formImportarDb.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      
+      if (!confirm('⚠️ ¿Estás seguro de inyectar este respaldo en la base de datos de Render?')) return;
+
+      alert('⏳ Procesando importación de respaldo, por favor espera un momento...');
+      
+      try {
+        const response = await fetch('/api/importar-respaldo-db', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert(result.message);
+          loadAdminCases();
+        } else {
+          alert('❌ Error: ' + result.error);
+        }
+      } catch (err) {
+        alert('❌ Ocurrió un error de red al enviar el archivo de respaldo.');
+        console.error(err);
+      }
+    });
+  }
+
   const btnPurge = document.querySelector('.bg-rose-600') || document.querySelector('button[class*="bg-rose-600"]');
   if (btnPurge) {
     btnPurge.addEventListener('click', (e) => {
@@ -79,7 +110,6 @@ async function loadAdminCases() {
     if (res.ok) {
       adminCases = await res.json();
       
-      // ORDENAMIENTO GARANTIZADO: Los más nuevos primero
       adminCases.sort((a, b) => {
         const dateA = new Date(a.createdAt || a.created_at || 0);
         const dateB = new Date(b.createdAt || b.created_at || 0);
@@ -197,7 +227,6 @@ async function ejecutarBorradoSelectivo() {
   }
 }
 
-// --- CONSULTA AVANZADA CON FECHA LOCAL EXACTA ---
 function ejecutarConsultaAvanzada() {
   const fechaSeleccionada = document.getElementById('queryDateInput').value;
   const tiendaSeleccionada = document.getElementById('queryStoreSelect').value;
@@ -947,8 +976,6 @@ if (btnClearAll) {
     }
   });
 }
-
-// --- NUEVAS FUNCIONES PARA EL MODAL DE EXPORTACIÓN EXCEL (CON RANGO DE FECHAS) ---
 
 function abrirModalExportarExcel() {
   const modal = document.getElementById('exportExcelModal');

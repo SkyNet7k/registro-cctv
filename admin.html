@@ -41,6 +41,30 @@
 
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+    <!-- SECCIÓN DE RESTAURACIÓN / IMPORTACIÓN DE RESPALDO DB -->
+    <div class="bg-slate-800 border border-emerald-500/30 rounded-xl p-5 shadow-lg space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700 pb-3 gap-3">
+        <h3 class="text-sm font-semibold text-emerald-400 flex items-center gap-2">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          Restaurar / Importar Respaldo de Base de Datos (Render)
+        </h3>
+        <span class="text-xs text-slate-400">Selecciona el archivo de respaldo exportado (.sql, .dat, .txt)</span>
+      </div>
+
+      <form id="formImportarDb" enctype="multipart/form-data" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+        <div class="sm:col-span-9">
+          <label class="block text-[11px] text-slate-400 mb-1">Archivo de Respaldo:</label>
+          <input type="file" name="archivoDb" id="archivoDb" required accept=".sql,.dat,.txt" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500">
+        </div>
+
+        <div class="sm:col-span-3">
+          <button type="submit" class="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium shadow transition h-[34px]">
+            <i class="fa-solid fa-upload"></i> Inyectar en DB
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- SECCIÓN DE DEPURACIÓN Y BORRADO SELECTIVO -->
     <div class="bg-slate-800 border border-rose-500/30 rounded-xl p-5 shadow-lg space-y-4">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700 pb-3 gap-3">

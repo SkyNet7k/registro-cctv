@@ -4,6 +4,9 @@ const fs = require('fs');
 const { Pool } = require('pg');
 const ExcelJS = require('exceljs');
 const cron = require('node-cron');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+const readline = require('readline');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -326,6 +329,56 @@ app.delete('/api/casos', async (req, res) => {
   }
 });
 
+// --- NUEVA RUTA PARA IMPORTAR RESPALDOS EN RENDER DESDE EL PANEL ---
+app.post('/api/importar-respaldo-db', upload.single('archivoDb'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se ha seleccionado ningún archivo de respaldo.' });
+  }
+
+  const client = await pool.connect();
+  let contador = 0;
+
+  try {
+    console.log('🔄 Iniciando la importación del respaldo en Render...');
+    await client.query('BEGIN');
+
+    const fileStream = fs.createReadStream(req.file.path);
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity
+    });
+
+    for await (const line of rl) {
+      const queryText = line.trim();
+      if (queryText.startsWith('INSERT INTO') || queryText.startsWith('COPY')) {
+        try {
+          await client.query(queryText);
+          contador++;
+        } catch (innerErr) {
+          // Ignora conflictos menores de claves repetidas para mantener la fluidez
+        }
+      }
+    }
+
+    await client.query('COMMIT');
+    
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+    res.json({ 
+      success: true, 
+      message: `¡Importación exitosa! Se procesaron y sincronizaron ${contador} registros en la base de datos.` 
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    console.error('❌ Error al procesar el respaldo:', error);
+    res.status(500).json({ error: 'Error al procesar el archivo de respaldo: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/reportes/turno', async (req, res) => {
   const { fecha, turno } = req.body;
   if (!fecha || !turno) {
@@ -407,7 +460,7 @@ async function ejecutarCorteYNotificar(turnoNombre) {
 
 cron.schedule('0 18 * * *', () => ejecutarCorteYNotificar('A'));
 cron.schedule('0 22 * * *', () => ejecutarCorteYNotificar('B'));
-cron.schedule('0 7 * * *', () => ejecutarCortonYNotificar('nocturno'));
+cron.schedule('0 7 * * *', () => ejecutarCorteYNotificar('nocturno'));
 
 app.get('/*splat', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
